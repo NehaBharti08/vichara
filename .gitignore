@@ -1,0 +1,106 @@
+# ---------------------------------------------------------------------------
+# Secrets. Never commit these.
+#
+# An agent holds a Gemini key, a Tavily key and an HF token. A leaked key in
+# git history survives `git rm` and has to be rotated, so this block is first
+# and gitleaks runs in pre-commit and CI as a second line of defence.
+# ---------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets.json
+.secrets/
+
+# ---------------------------------------------------------------------------
+# Agent runtime artifacts.
+#
+# Session workspaces hold whatever the file tool wrote and whatever the sandbox
+# spilled -- untrusted content by definition. Trajectories embed full tool
+# arguments and results, which is exactly where a key would end up if the
+# redaction in trajectory/redact.py ever regressed. Neither belongs in history.
+# ---------------------------------------------------------------------------
+sessions/
+workspaces/
+trajectories/
+*.sqlite
+*.sqlite3
+*.db
+
+# Pyodide downloads its wheels on first run; reproducible, ~200MB, not ours.
+.pyodide_cache/
+node_modules/
+
+# ---------------------------------------------------------------------------
+# Data: committed selectively.
+#
+# The eval task set, the gold annotations and the attack corpus ARE committed
+# on purpose -- they are the evidence behind every number in the README, and a
+# result you cannot re-derive is not a result. Recorded replays and the LLM
+# response cache are large, machine-generated, and regenerable, so they stay
+# out. Anything not explicitly un-ignored below is ignored by default.
+# ---------------------------------------------------------------------------
+data/*
+!data/eval/
+!data/attacks/
+!data/fixtures/
+data/fixtures/llm_cache.sqlite
+data/replays/
+data/scratch/
+
+# ---------------------------------------------------------------------------
+# Evaluation
+#
+# eval results ARE committed -- the run history is the evidence behind the
+# results table. Only scratch output and the resume ledger are ignored.
+# ---------------------------------------------------------------------------
+eval_results/scratch/
+.eval_cache/
+
+# ---------------------------------------------------------------------------
+# Python
+# ---------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+.installed.cfg
+
+# Environments
+.venv/
+venv/
+env/
+ENV/
+
+# Tooling caches
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+.hypothesis/
+
+# ---------------------------------------------------------------------------
+# Editors / OS
+# ---------------------------------------------------------------------------
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---------------------------------------------------------------------------
+# Gradio
+# ---------------------------------------------------------------------------
+.gradio/
+flagged/
