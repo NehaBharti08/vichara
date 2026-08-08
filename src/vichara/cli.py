@@ -32,6 +32,12 @@ from vichara.settings import (
     load_pipeline_config,
 )
 from vichara.tools.config import ToolRegistryConfig, load_tool_registry
+from vichara.tools.registry import Registry, build_registry
+
+_PROBE_SESSION = "cli-probe"
+"""Session id used for health probing. The workspace tool needs one, and
+using a fixed name keeps `vichara health` from littering a new session
+directory on every invocation."""
 
 app = typer.Typer(
     name="vichara",
@@ -51,6 +57,18 @@ DEGRADED = "[yellow]degraded[/yellow]"
 FAIL = "[red]fail[/red]"
 
 
+@app.callback()
+def _main() -> None:
+    """Configure logging once, for every command.
+
+    Without this only `health` configured it, so other commands fell back to
+    the JSON default and printed machine-readable log lines at a human. The
+    format is the operator's choice via LOG_FORMAT; the CLI just honours it.
+    """
+    settings = Settings()
+    configure_logging(settings.log_level, settings.log_format)
+
+
 def _load(profile: str | None) -> tuple[Settings, PipelineConfig, ToolRegistryConfig]:
     settings = Settings()
     config = load_pipeline_config(profile or settings.profile)
@@ -58,23 +76,16 @@ def _load(profile: str | None) -> tuple[Settings, PipelineConfig, ToolRegistryCo
     return settings, config, registry
 
 
-def _resolve_backend(name: str, declared: str, settings: Settings) -> tuple[str, bool]:
-    """Return the backend a tool would actually use, and whether it is degraded.
+def _probe_registry(settings: Settings, config: PipelineConfig) -> Registry:
+    """Actually construct and probe the tools.
 
-    Kept as a plain function rather than a method on the registry because it
-    needs Settings, and the registry deliberately knows nothing about
-    credentials -- that is what lets ``vichara tools`` run without them.
+    Earlier this guessed the backend from which credentials were present. That
+    was wrong in the case that matters most: a configured-but-down retrieval
+    service reported ``http`` while the agent would really have used the
+    fixture corpus. A health command that reports intent rather than outcome
+    is worse than none, so it now builds the same registry the agent gets.
     """
-    if declared != "auto":
-        return declared, False
-    if name == "textbook_search":
-        return ("http", False) if settings.vidyarag_url else ("fixture", True)
-    if name == "web_search":
-        return ("tavily", False) if settings.has_tavily_key else ("fixture", True)
-    if name == "run_python":
-        backend = settings.sandbox_backend or SandboxBackend.PYODIDE
-        return backend.value, False
-    return "local", False
+    return build_registry(settings, config, session_id=_PROBE_SESSION)
 
 
 def _node_version() -> str | None:
@@ -110,31 +121,40 @@ def config(profile: ProfileOption = None) -> None:
 
 @app.command()
 def tools(profile: ProfileOption = None) -> None:
-    """List declared tools and the backend each would resolve to."""
-    settings, _, registry = _load(profile)
+    """Show the capability set this environment actually has."""
+    settings, config, declared = _load(profile)
+    registry = _probe_registry(settings, config)
 
-    table = Table(title="Declared tools", header_style="bold")
+    table = Table(title="Tools", header_style="bold")
     table.add_column("tool")
-    table.add_column("enabled")
+    table.add_column("status")
     table.add_column("backend")
     table.add_column("risk")
     table.add_column("output")
 
-    for spec in registry.tools:
-        backend, degraded = _resolve_backend(spec.name, spec.backend, settings)
+    for status in registry.statuses:
+        if status.available:
+            state = DEGRADED if status.health.degraded else OK
+        else:
+            state = f"[dim]{status.reason or 'unavailable'}[/dim]"
         table.add_row(
-            spec.name,
-            "yes" if spec.enabled else "[dim]no[/dim]",
-            f"[yellow]{backend}[/yellow]" if degraded else backend,
-            spec.risk.value,
-            spec.output_trust.value,
+            status.spec.name,
+            state,
+            status.health.backend,
+            status.spec.risk.value,
+            status.spec.output_trust.value,
         )
 
     console.print(table)
     console.print(
-        f"\nCapability set: [bold]{len(registry.enabled)}[/bold] of "
-        f"{len(registry.tools)} tools enabled."
+        f"\nCapability set: [bold]{len(registry.capability_profile)}[/bold] of "
+        f"{len(declared.tools)} declared tools available."
     )
+
+    notice = registry.capability_notice()
+    if notice:
+        console.print("\n[dim]The agent will be told:[/dim]")
+        console.print(f"[dim]{notice}[/dim]")
 
 
 @app.command()
@@ -185,13 +205,21 @@ def health(profile: ProfileOption = None) -> None:
     else:
         table.add_row("model provider", DEGRADED, "GOOGLE_API_KEY not set")
 
-    for spec in registry.enabled:
-        backend, degraded = _resolve_backend(spec.name, spec.backend, settings)
-        table.add_row(
-            f"tool:{spec.name}",
-            DEGRADED if degraded else OK,
-            f"backend={backend}" + (" (no credential)" if degraded else ""),
-        )
+    # Real construction and probing, not an inference from which keys are set.
+    probed = _probe_registry(settings, cfg)
+    for status in probed.statuses:
+        if status.available:
+            table.add_row(
+                f"tool:{status.spec.name}",
+                DEGRADED if status.health.degraded else OK,
+                f"backend={status.health.backend}, {status.health.detail}",
+            )
+        else:
+            table.add_row(
+                f"tool:{status.spec.name}",
+                DEGRADED,
+                f"unavailable: {status.reason or status.health.detail}",
+            )
 
     # Node hosts the Pyodide sandbox. Not a Phase 0 failure, but the sandbox is
     # the default code-execution backend, so silence here would be misleading.

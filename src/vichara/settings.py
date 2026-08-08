@@ -329,6 +329,10 @@ class ToolsConfig(BaseModel):
     search_max_results: int = 5
     tool_timeout_s: float = 30.0
     tool_max_retries: int = 2
+    max_output_bytes: int = 16_384
+    """Ceiling on what one tool call may put into the context. Five retrieved
+    passages plus five search results already approach this; without a cap a
+    single call can consume more of the step budget than the reasoning does."""
 
 
 class PipelineConfig(BaseModel):
