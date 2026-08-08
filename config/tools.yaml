@@ -1,0 +1,63 @@
+# Tool registration.
+#
+# Separate from the behavioural profiles because availability is a deployment
+# fact, not an experimental variable: the same profile should be runnable with
+# or without a deployed retrieval service.
+#
+# The contract every entry obeys: `required: false` means an unhealthy tool is
+# dropped from the agent's bound tool list, a notice is injected into the
+# system prompt telling it to say so rather than guess, and the run continues
+# with a smaller capability set. A missing tool shrinks what the agent can do.
+# It never crashes it. That includes VidyaRAG being entirely undeployed.
+#
+# `output_trust: untrusted` is the load-bearing field for Phase 5. Anything a
+# tool returns that originated outside this process -- a web page, a retrieved
+# textbook chunk, a file the agent itself wrote earlier -- is data, never
+# instructions, and gets wrapped in a provenance envelope before it reaches
+# the model. See docs/PROMPT_INJECTION.md.
+
+tools:
+  - name: textbook_search
+    enabled: true
+    required: false
+    # `auto` resolves to the HTTP backend when VIDYARAG_URL is set and the
+    # health probe passes, and to the committed fixture corpus otherwise.
+    backend: auto
+    risk: read
+    output_trust: untrusted
+    summary: >-
+      Retrieve passages from OpenStax Biology and Anatomy & Physiology with
+      citable page numbers. The right tool for conceptual grounding.
+
+  - name: web_search
+    enabled: true
+    required: false
+    backend: auto
+    risk: read
+    output_trust: untrusted
+    summary: >-
+      Search the live web. The right tool for currency -- anything published
+      after the textbooks, or absent from them.
+
+  - name: run_python
+    enabled: true
+    required: false
+    backend: auto
+    # Executes agent-authored code. Interrupts for human approval outside
+    # evaluation mode; in evaluation a policy auto-approver answers so the
+    # path is exercised on every run rather than being demo-only dead code.
+    risk: destructive
+    output_trust: untrusted
+    summary: >-
+      Run Python in a sandbox with numpy, pandas, scipy and sympy available.
+      No network. The right tool for any computation.
+
+  - name: workspace_file
+    enabled: true
+    required: false
+    backend: local
+    risk: destructive
+    output_trust: untrusted
+    summary: >-
+      Read, write and list files inside this session's workspace only. Cannot
+      reach anything outside it.

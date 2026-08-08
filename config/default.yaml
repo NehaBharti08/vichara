@@ -1,0 +1,114 @@
+# Base behavioural configuration.
+#
+# Every value is written out explicitly rather than left to the pydantic
+# defaults in src/vichara/settings.py. That duplication is deliberate: a
+# profile is only a useful description of an agent variant if the whole
+# configuration can be read in one place and diffed against another run.
+# The pydantic defaults remain as a safety net, and `extra: forbid` on every
+# model means a typo here is a startup error rather than a silently ignored
+# setting that would invalidate a benchmark.
+#
+# Profiles in config/profiles/ overlay this file. Keep overrides there minimal
+# and legible -- a profile that restates fifty unchanged values tells a reader
+# nothing about what makes it different.
+
+name: default
+description: Base configuration. Profiles overlay this.
+
+models:
+  provider: google
+  # flash-lite, not flash, for the roles that run every step. The binding
+  # constraint on evaluation is requests per day, and lite has materially
+  # more headroom. The planner is a candidate for something stronger, but
+  # only if the Phase 4 ablation shows it earns the quota -- see
+  # docs/EVALUATION.md. Until then it runs on the same model as the agent.
+  #
+  # Pinned to an explicit generation rather than the `-latest` aliases: a
+  # results table that cites a moving alias describes a model nobody can
+  # reproduce. These are the same IDs VidyaRAG pins, so a question answered
+  # by retrieval and a question answered by the agent are answered by the
+  # same model -- which is the only way the two projects' numbers compare.
+  agent: gemini-3.5-flash-lite
+  planner: gemini-3.5-flash-lite
+  judge: gemini-3.5-flash
+  compress: gemini-3.5-flash-lite
+  temperature: 0.0
+  max_output_tokens: 2048
+
+budget:
+  # Provisional. Re-derived at the end of Phase 4 from the annotated optimal
+  # paths: roughly 2.5x the worst-case optimal, which leaves room for two
+  # full failure -> reflect -> retry cycles on the hardest task.
+  max_steps: 12
+  # The ceiling that actually fires on a free tier.
+  max_llm_requests: 25
+  max_tokens: 150000
+  max_wall_clock_s: 120.0
+  # Enforced but inert until the provider is switched. It exists so the
+  # guardrail is already real on the day it starts mattering.
+  max_est_usd: 0.05
+  max_plan_revisions: 3
+
+tool_limits:
+  default: 4
+  per_tool:
+    textbook_search: 4
+    web_search: 4
+    # Highest-risk tool, lowest legitimate need to repeat.
+    run_python: 2
+    workspace_file: 3
+
+loops:
+  # Two, not three. One exact repeat of the same call with the same arguments
+  # is already a bug: nothing about the state changed, so nothing about the
+  # result will either.
+  identical_threshold: 2
+  near_repeat_window: 3
+  near_repeat_similarity: 0.9
+
+memory:
+  verbatim_recent_observations: 3
+  externalize_over_bytes: 2048
+  soft_limit_tokens: 12000
+  compress_every_n_steps: 5
+  preserve_provenance_tags: true
+
+planning:
+  enabled: true
+  min_plan_steps: 1
+  max_plan_steps: 6
+  advisory: true
+
+reflection:
+  on_tool_error: true
+  on_low_information: true
+  on_plan_step_complete: true
+  every_n_steps: 3
+  skip_first_step: true
+
+sandbox:
+  backend: pyodide
+  cpu_seconds: 5.0
+  memory_mb: 256
+  wall_clock_s: 10.0
+  max_output_bytes: 65536
+  network: false
+  warm_worker: true
+
+injection:
+  # Provenance tagging is instrumentation, not a defence, so it is on even
+  # here: without span attribution there is no way to tell which tool result
+  # compromised a trajectory. Everything below it is a defence and stays off
+  # in the control, because a baseline attack success rate cannot be measured
+  # against a configuration that already defends.
+  tag_provenance: true
+  neutralise_delimiters: false
+  strip_imperatives: false
+  detector_enabled: false
+  on_detection: log
+
+tools:
+  retrieval_top_k: 5
+  search_max_results: 5
+  tool_timeout_s: 30.0
+  tool_max_retries: 2

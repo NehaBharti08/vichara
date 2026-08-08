@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: lint · types · tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    # No credentials are set here, deliberately. The suite must pass with an
+    # empty environment: that is what proves the fixture backends work and that
+    # the agent degrades rather than crashing when a service is undeployed. A
+    # key in CI would let a test start silently depending on a live provider.
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Lint (ruff)
+        run: uv run ruff check .
+
+      - name: Format check (black)
+        run: uv run black --check .
+
+      - name: Type check (mypy)
+        run: uv run mypy
+
+      - name: Tests
+        run: uv run pytest -m "not costly" --cov --cov-report=term-missing
+
+      - name: Health check
+        run: uv run vichara health
+
+  secrets:
+    name: secret scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # gitleaks scans history, not just the diff
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

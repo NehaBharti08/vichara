@@ -1,0 +1,18 @@
+# The frozen control.
+#
+# Once Phase 4 lands, this file must not change. Every number in
+# docs/EVALUATION.md and in the README results table is measured against it,
+# and a control that drifts makes the whole comparison meaningless -- a later
+# improvement becomes indistinguishable from a quietly relaxed ceiling.
+#
+# New ideas go in a new profile. If baseline genuinely has to change, that is
+# a new task-set version and a new results table, recorded in the changelog
+# in docs/EVALUATION.md.
+#
+# It deliberately overrides almost nothing: the control is the defaults, and
+# a reader should be able to see that at a glance.
+
+name: baseline
+description: >-
+  Frozen control. Defaults throughout, no injection defences, planner on the
+  same model as the agent. Every reported result is a delta against this.

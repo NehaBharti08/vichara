@@ -1,0 +1,67 @@
+# Run on every commit. Install once with:  uv run pre-commit install
+#
+# gitleaks is first and non-negotiable. This repo handles a Gemini key, a
+# Tavily key and an HF token, and it writes trajectory logs that embed full
+# tool arguments -- exactly where a credential ends up if the redaction in
+# trajectory/redact.py ever regresses. A leaked key in git history survives
+# `git rm` and has to be rotated, so the cheap check runs before anything else.
+
+default_language_version:
+  python: python3.11
+
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.21.2
+    hooks:
+      - id: gitleaks
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-added-large-files
+        # Catches a stray Pyodide wheel cache or a recorded replay bundle
+        # before it enters history.
+        args: ["--maxkb=2048"]
+      - id: check-merge-conflict
+      - id: check-toml
+      - id: check-yaml
+        args: ["--allow-multiple-documents"]
+      - id: check-json
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: mixed-line-ending
+        args: ["--fix=lf"]
+      - id: detect-private-key
+
+  # ruff lints, black formats. ruff-format is deliberately NOT enabled: it and
+  # black disagree on edge cases and would rewrite each other's output on every
+  # commit. One formatter, one linter.
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.4
+    hooks:
+      - id: ruff
+        args: ["--fix"]
+
+  - repo: https://github.com/psf/black
+    rev: 24.10.0
+    hooks:
+      - id: black
+
+  # mypy runs against the core package only -- see [tool.mypy] in pyproject.
+  #
+  # The hook runs in an isolated environment, so every typed dependency the
+  # package imports must be listed here or mypy reports false positives that do
+  # not reproduce locally (typer's decorators appearing untyped is the usual
+  # one). Keep this list in sync with the imports in src/vichara/.
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.13.0
+    hooks:
+      - id: mypy
+        files: ^src/vichara/
+        additional_dependencies:
+          - pydantic>=2.9
+          - pydantic-settings>=2.6
+          - types-pyyaml
+          - typer>=0.15
+          - rich>=13.9
+          - structlog>=24.4
