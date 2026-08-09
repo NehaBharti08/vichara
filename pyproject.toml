@@ -143,6 +143,7 @@ markers = [
     "integration: touches a live external service (deselect with '-m \"not integration\"')",
     "costly: consumes model-provider quota (deselect with '-m \"not costly\"')",
     "sandbox: needs a working Node runtime for the Pyodide backend",
+    "slow: takes more than a few seconds (package loading, cold starts)",
     "docker: needs a working Docker daemon; runs in CI, not on a dev laptop",
 ]
 

@@ -1,0 +1,10 @@
+{
+  "name": "vichara-sandbox",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Node host for the Pyodide sandbox backend. Not published.",
+  "dependencies": {
+    "pyodide": "^0.28.0"
+  }
+}

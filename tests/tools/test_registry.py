@@ -44,20 +44,22 @@ class TestDefaultCapabilitySet:
         assert "web_search" in registry.capability_profile
         assert "workspace_file" in registry.capability_profile
 
-    def test_run_python_is_absent_until_phase_two(
+    def test_run_python_tracks_the_sandbox_runtime(
         self, settings: Settings, config: PipelineConfig
     ) -> None:
-        """Declared but unimplemented, and honest about it.
+        """Available exactly when a runtime is, and honest either way.
 
-        Silently omitting it from tools.yaml would hide the gap; reporting it
-        as missing keeps the capability set truthful.
+        Node is present on a developer machine and in CI, absent on a stripped
+        image. Both are supported; what must not happen is the tool appearing
+        in the capability set while being unable to run anything.
         """
         registry = build_registry(settings, config, session_id="sess-test")
-
-        assert "run_python" not in registry.capability_profile
         status = registry.status("run_python")
+
         assert status is not None
-        assert status.reason == "not implemented"
+        assert status.available == status.health.healthy
+        if not status.available:
+            assert "Do computations by hand" in registry.capability_notice()
 
     def test_degraded_backends_are_reported_separately(
         self, settings: Settings, config: PipelineConfig

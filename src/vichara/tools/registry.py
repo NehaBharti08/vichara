@@ -24,6 +24,7 @@ from pathlib import Path
 from vichara.logging import get_logger
 from vichara.settings import PipelineConfig, Settings
 from vichara.tools.base import BaseTool, HealthStatus
+from vichara.tools.code.tool import build_run_python_tool
 from vichara.tools.config import ToolRegistryConfig, ToolSpec, load_tool_registry
 from vichara.tools.files.tool import build_workspace_file_tool
 from vichara.tools.rag.tool import build_textbook_tool
@@ -233,10 +234,9 @@ def _construct(
             settings, session_id, timeout_s=timeout_s, max_output_bytes=max_output_bytes
         )
     if spec.name == "run_python":
-        # Arrives in Phase 2 behind the Sandbox protocol. Declared now so the
-        # capability set is honest about what is missing rather than silently
-        # omitting it.
-        return None
+        return build_run_python_tool(
+            settings, config, timeout_s=timeout_s, max_output_bytes=max_output_bytes
+        )
     log.warning("unknown tool declared", tool=spec.name)
     return None
 
