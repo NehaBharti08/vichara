@@ -99,12 +99,18 @@ select = [
     "RUF",
 ]
 ignore = [
-    "E501",  # line length is black's job
-    "B008",  # FastAPI Depends() in defaults is idiomatic
+    "E501",   # line length is black's job
+    "B008",   # FastAPI Depends() in defaults is idiomatic
+    # Word lists (stopwords, reserved device names) read better as a split
+    # string than as a forty-element list literal. The rule is a style
+    # preference and this codebase has the opposite one.
+    "SIM905",
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["ARG001", "ARG002"]
+# Stubs handed to monkeypatch must match the signature they replace, so unused
+# parameters are inherent rather than accidental.
+"tests/**" = ["ARG001", "ARG002", "ARG005"]
 
 [tool.black]
 line-length = 100

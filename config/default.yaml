@@ -112,3 +112,4 @@ tools:
   search_max_results: 5
   tool_timeout_s: 30.0
   tool_max_retries: 2
+  max_output_bytes: 16384

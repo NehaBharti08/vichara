@@ -75,9 +75,20 @@ class TestHealthCommand:
         assert (tmp_env / "cache").is_dir()
 
     def test_leaves_no_probe_files(self, tmp_env: Path) -> None:
+        """Probing must not leave litter behind.
+
+        Health builds the real registry, so the workspace tool's probe does
+        create one session directory -- that is how it verifies the path is
+        writable. It uses a fixed name so repeated invocations reuse it rather
+        than accumulating one directory per run, and it must leave no files.
+        """
+        runner.invoke(app, ["health"])
         runner.invoke(app, ["health"])
 
-        assert list((tmp_env / "sessions").iterdir()) == []
+        sessions = sorted(p.name for p in (tmp_env / "sessions").iterdir())
+        assert sessions == ["cli-probe"], "probing must not accumulate directories"
+        assert list((tmp_env / "sessions" / "cli-probe").iterdir()) == []
+        assert not list(tmp_env.rglob(".vichara-write-probe"))
 
     def test_reports_provider_when_key_present(
         self, tmp_env: Path, monkeypatch: pytest.MonkeyPatch
