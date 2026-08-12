@@ -33,8 +33,19 @@ jobs:
       - name: Set up Python
         run: uv python install 3.11
 
+      # The Pyodide sandbox backend is hosted by Node, and it is the default
+      # backend everywhere -- so without this the sandbox suite silently skips
+      # and the security claims in docs/THREAT_MODEL.md go untested.
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
       - name: Install dependencies
-        run: uv sync --frozen
+        run: |
+          uv sync --frozen
+          npm ci
 
       - name: Lint (ruff)
         run: uv run ruff check .
@@ -50,6 +61,38 @@ jobs:
 
       - name: Health check
         run: uv run vichara health
+
+  docker-sandbox:
+    name: sandbox conformance (docker backend)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    # The Docker backend is implemented in full but is not the default and is
+    # not expected to run on a developer laptop. Ubuntu runners ship a working
+    # daemon for free, so this is where it gets exercised -- the alternative is
+    # a backend that compiles and is never run.
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Pre-pull the sandbox image
+        run: docker pull python:3.11-slim
+
+      - name: Sandbox conformance
+        env:
+          SANDBOX_BACKEND: docker
+        run: uv run pytest tests/sandbox -q -m "sandbox or not sandbox"
 
   secrets:
     name: secret scan
