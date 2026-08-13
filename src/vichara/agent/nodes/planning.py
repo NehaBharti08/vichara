@@ -112,10 +112,21 @@ def route_after_plan(state: AgentState) -> str:
     plan = state.get("plan")
     if plan is None:
         return "halt"
+
+    # Clarification is checked first, and the ordering is load-bearing. The
+    # planner routinely marks an ambiguous task as `answerable: false` *and*
+    # `needs_clarification: true`, which is not incoherent -- it cannot be
+    # answered as written. Checking answerability first turned every ambiguous
+    # task into a refusal, which the evaluation caught on its first run:
+    # `ambiguous-the-cycle` expected `clarify` and got `refused`.
+    #
+    # The distinction matters beyond bookkeeping. Refusing tells the user
+    # nothing can be done; asking which cycle they meant costs one sentence and
+    # gets them an answer.
+    if plan.needs_clarification and plan.clarifying_question:
+        return "clarify"
     if not plan.answerable:
         return "refuse"
-    if plan.needs_clarification:
-        return "clarify"
     return "act"
 
 
