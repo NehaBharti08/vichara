@@ -15,7 +15,7 @@ dependencies = [
     # itself and is what makes a run resumable and inspectable -- without it
     # the interrupt-based approval flow in guardrails/approval.py cannot work.
     "langgraph>=1.0,<2.0",
-    "langgraph-checkpoint-sqlite>=2.0,<3.0",
+    "langgraph-checkpoint-sqlite>=3.0",
     "langchain-core>=0.3,<2.0",
     # Provider. Every model call routes through llm/provider.py; this is the
     # only place a vendor SDK is imported, so switching providers is a config
@@ -131,6 +131,9 @@ module = [
     "gradio.*",
     "langgraph.*",
     "langchain_google_genai.*",
+    # Optional: the OpenAI adapter is implemented and tested but the SDK is
+    # not a runtime dependency, so the module is legitimately absent here.
+    "langchain_openai.*",
 ]
 ignore_missing_imports = true
 

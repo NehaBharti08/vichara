@@ -98,6 +98,12 @@ jobs:
     name: secret scan
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # gitleaks-action posts its findings as a PR comment; without this it logs
+    # a permissions warning on every run and the failure reason is buried in
+    # the job log instead of being visible on the pull request.
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
         with:
