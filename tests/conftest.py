@@ -34,6 +34,21 @@ ENV_VARS = (
 
 
 @pytest.fixture(autouse=True)
+def _isolate_llm_cache(
+    monkeypatch: pytest.MonkeyPatch, tmp_path_factory: pytest.TempPathFactory
+) -> None:
+    """Never let a test read or write the developer's real response cache.
+
+    A shared cache would make tests pass because an earlier run happened to
+    populate it, which is the same class of false green as a leaked API key.
+    """
+    monkeypatch.setenv("CACHE_PATH", str(tmp_path_factory.mktemp("llm") / "cache.sqlite"))
+    monkeypatch.setenv(
+        "CHECKPOINT_PATH", str(tmp_path_factory.mktemp("ckpt") / "checkpoints.sqlite")
+    )
+
+
+@pytest.fixture(autouse=True)
 def _isolate_env(monkeypatch: pytest.MonkeyPatch) -> None:
     """Stop a developer's real .env from leaking into tests.
 

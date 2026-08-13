@@ -33,6 +33,7 @@ from vichara.settings import (
 )
 from vichara.tools.config import ToolRegistryConfig, load_tool_registry
 from vichara.tools.registry import Registry, build_registry
+from vichara.trajectory.schema import TerminalReason, TrajectoryRecord
 
 _PROBE_SESSION = "cli-probe"
 """Session id used for health probing. The workspace tool needs one, and
@@ -244,6 +245,107 @@ def _relative(path: Path) -> Path:
         return path.relative_to(Path.cwd())
     except ValueError:
         return path
+
+
+@app.command()
+def run(
+    task: Annotated[str, typer.Argument(help="The question to answer.")],
+    profile: ProfileOption = None,
+    yes: Annotated[
+        bool, typer.Option("--yes", "-y", help="Auto-approve destructive actions.")
+    ] = False,
+    recorded_search: Annotated[
+        bool, typer.Option("--recorded-search", help="Replay recorded search, not live.")
+    ] = False,
+    show_trajectory: Annotated[
+        bool, typer.Option("--trajectory", help="Print the step-by-step trajectory.")
+    ] = False,
+) -> None:
+    """Answer a question, printing the answer and what it cost."""
+    from vichara.agent.runner import AgentSession
+
+    settings = Settings()
+    cfg = load_pipeline_config(profile or settings.profile)
+    configure_logging(settings.log_level, settings.log_format)
+
+    with AgentSession(
+        settings, cfg, auto_approve=yes, prefer_recorded_search=recorded_search
+    ) as session:
+        outcome = session.run(task)
+
+        # Approvals are answered here rather than auto-allowed, so the
+        # human-in-the-loop path is exercised by the ordinary CLI and not only
+        # by the UI. Resumption goes through the checkpoint, which is what
+        # makes it survive a restart rather than merely a pause.
+        while outcome.interrupted and outcome.interrupt_payload:
+            payload = outcome.interrupt_payload
+            console.print(
+                f"\n[yellow]Approval needed[/yellow]: {payload.get('tool')} "
+                f"({payload.get('risk')})"
+            )
+            console.print_json(data=payload.get("args", {}))
+            outcome = session.resume(
+                {"approved": typer.confirm("Allow this action?", default=False)}
+            )
+
+        record = outcome.record
+        console.print()
+        if show_trajectory:
+            _print_trajectory(record)
+
+        console.print("[bold]Answer[/bold]")
+        console.print(record.final_answer or "(none)")
+
+        if record.citations:
+            console.print("\n[bold]Sources[/bold]")
+            seen: set[str] = set()
+            for citation in record.citations:
+                source = str(citation.get("source", ""))
+                if source and source not in seen:
+                    seen.add(source)
+                    console.print(f"  - {source}")
+
+        console.print(
+            f"\n[dim]{record.terminal_reason} | {record.agent_steps} steps | "
+            f"{record.llm_requests} requests ({record.cache_hits} cached) | "
+            f"{record.total_tokens} tokens | {record.wall_clock_s}s | "
+            f"session {record.session_id}[/dim]"
+        )
+        # Non-zero for anything but a real answer, so a shell script or CI job
+        # can tell "refused" from "answered" without parsing the output.
+        if record.terminal_reason is not TerminalReason.ANSWERED:
+            raise typer.Exit(code=2)
+
+
+def _print_trajectory(record: TrajectoryRecord) -> None:
+    """The reasoning tree, in text. The Phase 6 viewer renders the same data."""
+    table = Table(title="Trajectory", header_style="bold")
+    table.add_column("#")
+    table.add_column("node")
+    table.add_column("detail")
+    table.add_column("ms", justify="right")
+
+    for step in record.steps:
+        detail = step.thought or step.note
+        for call in step.tool_calls:
+            detail = f"{call.tool}({_brief(call.args)})"
+        for obs in step.observations:
+            detail = f"{obs.tool} -> {'ok' if obs.ok else 'FAILED'}, {obs.raw_bytes}B"
+        table.add_row(str(step.index), step.kind.value, detail[:70], f"{step.duration_ms:.0f}")
+
+    console.print(table)
+    if record.guardrail_events:
+        console.print("[bold]Guardrails[/bold]")
+        for event in record.guardrail_events:
+            colour = "red" if event.action == "block" else "dim"
+            console.print(
+                f"  [{colour}]step {event.step}: {event.rule} -> {event.action}[/{colour}]"
+            )
+    console.print()
+
+
+def _brief(args: dict[str, object]) -> str:
+    return ", ".join(f"{key}={str(value)[:40]}" for key, value in args.items())
 
 
 if __name__ == "__main__":
