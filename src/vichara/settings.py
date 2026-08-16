@@ -1,4 +1,4 @@
-"""Runtime configuration.
+﻿"""Runtime configuration.
 
 Two layers, deliberately separated:
 
@@ -166,14 +166,21 @@ class BudgetConfig(BaseModel):
     enforced too and will simply never trip until the provider is switched --
     it exists so the guardrail is real on the day it matters.
 
-    ``max_steps`` is provisional until the gold optimal paths are annotated in
-    Phase 4; the method is to set it at roughly 2.5x the worst-case optimal
-    path, which leaves headroom for two full failure-reflect-retry cycles.
+    ``max_steps`` is no longer provisional. All 41 gold tasks were annotated
+    with an optimal path before the agent was run on any of them; the longest
+    is 3 tool calls (the single three-tool orchestration task). The ceiling is
+    set at 8, roughly 2.5x that worst case, which leaves room for two full
+    failure-reflect-retry cycles on the hardest task in the set and still
+    stops a runaway well short of the old value of 12.
+
+    Deriving it this way is the point: 12 was a guess, 8 is a consequence of
+    the annotation. If the task set grows a longer optimal path, this number
+    is expected to move with it.
     """
 
     model_config = ConfigDict(extra="forbid")
 
-    max_steps: int = 12
+    max_steps: int = 8
     max_llm_requests: int = 25
     max_tokens: int = 150_000
     max_wall_clock_s: float = 120.0

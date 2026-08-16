@@ -1,4 +1,4 @@
-# Base behavioural configuration.
+﻿# Base behavioural configuration.
 #
 # Every value is written out explicitly rather than left to the pydantic
 # defaults in src/vichara/settings.py. That duplication is deliberate: a
@@ -36,10 +36,11 @@ models:
   max_output_tokens: 2048
 
 budget:
-  # Provisional. Re-derived at the end of Phase 4 from the annotated optimal
-  # paths: roughly 2.5x the worst-case optimal, which leaves room for two
-  # full failure -> reflect -> retry cycles on the hardest task.
-  max_steps: 12
+  # Derived, not guessed. All 41 gold tasks were annotated with an optimal
+  # path before the agent ran on any of them; the longest is 3 tool calls.
+  # 8 is roughly 2.5x that, leaving room for two full failure -> reflect ->
+  # retry cycles on the hardest task. It was 12 before the annotation existed.
+  max_steps: 8
   # The ceiling that actually fires on a free tier.
   max_llm_requests: 25
   max_tokens: 150000
