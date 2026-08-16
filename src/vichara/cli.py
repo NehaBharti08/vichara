@@ -348,5 +348,114 @@ def _brief(args: dict[str, object]) -> str:
     return ", ".join(f"{key}={str(value)[:40]}" for key, value in args.items())
 
 
+@app.command()
+def evaluate(
+    profile: ProfileOption = None,
+    repeats: Annotated[
+        int, typer.Option("--repeats", "-n", help="Runs per task. 3 routine, 5 headline.")
+    ] = 3,
+    only: Annotated[str | None, typer.Option("--only", help="Comma-separated task ids.")] = None,
+    disable: Annotated[
+        str | None,
+        typer.Option("--disable", help="Comma-separated tools to remove (degraded profile)."),
+    ] = None,
+    fault: Annotated[
+        str | None,
+        typer.Option("--fault", help="tool:kind, e.g. textbook_search:plausible_but_wrong"),
+    ] = None,
+    max_requests: Annotated[
+        int | None, typer.Option("--max-requests", help="Stop before exhausting the quota.")
+    ] = None,
+    no_resume: Annotated[bool, typer.Option("--no-resume", help="Re-run completed pairs.")] = False,
+    report_to: Annotated[
+        Path | None, typer.Option("--report", help="Write a markdown report here.")
+    ] = None,
+) -> None:
+    """Run an evaluation sweep. Resumable -- safe to interrupt and restart."""
+    from vichara.eval.faults import FaultKind, FaultSpec
+    from vichara.eval.report import summarise, to_markdown
+    from vichara.eval.runner import DEFAULT_RESULTS, ResultStore, SweepConfig, run_sweep
+    from vichara.eval.tasks.loader import load_tasks
+
+    settings = Settings()
+    cfg = load_pipeline_config(profile or settings.profile)
+    tasks = load_tasks()
+
+    spec = None
+    if fault:
+        tool_name, _, kind = fault.partition(":")
+        spec = FaultSpec(tool=tool_name, kind=FaultKind(kind))
+
+    sweep = SweepConfig(
+        profile=cfg.name,
+        repeats=repeats,
+        only=[t.strip() for t in only.split(",")] if only else [],
+        disable_tools=[t.strip() for t in disable.split(",")] if disable else [],
+        fault=spec,
+        max_requests=max_requests,
+    )
+
+    console.print(
+        f"[bold]{cfg.name}[/bold]: {len(sweep.only) or len(tasks.tasks)} tasks "
+        f"x {repeats} seeds"
+        + (f", tools disabled: {sweep.disable_tools}" if sweep.disable_tools else "")
+        + (f", fault: {fault}" if fault else "")
+    )
+
+    run_sweep(settings, cfg, tasks, sweep, resume=not no_resume)
+
+    # Report over *everything* recorded for this profile, not only what this
+    # invocation produced -- otherwise a resumed sweep reports on its last
+    # fragment and the numbers look worse than the run actually was.
+    summary = summarise(ResultStore(DEFAULT_RESULTS / f"{cfg.name}.jsonl").read())
+    _print_summary(summary)
+
+    if report_to:
+        report_to.parent.mkdir(parents=True, exist_ok=True)
+        report_to.write_text(
+            to_markdown(summary, title=f"Evaluation: {cfg.name}"), encoding="utf-8"
+        )
+        console.print(f"\n[dim]report written to {report_to}[/dim]")
+
+
+def _print_summary(summary: dict[str, object]) -> None:
+    if not summary.get("n_runs"):
+        console.print("[yellow]No results.[/yellow]")
+        return
+
+    overall = summary["overall"]
+    assert isinstance(overall, dict)
+
+    table = Table(
+        title=f"{summary['n_runs']} runs / {summary['n_tasks']} tasks", header_style="bold"
+    )
+    table.add_column("metric")
+    table.add_column("value", justify="right")
+    for key in (
+        "terminal_correct",
+        "answer_correct",
+        "forbidden_tool_rate",
+        "cited_rate",
+        "refusal_correct",
+        "mean_steps_to_refusal",
+        "false_refusal_rate",
+    ):
+        value = overall.get(key)
+        table.add_row(key, "-" if value is None else str(value))
+    for key in ("tool_precision", "step_efficiency", "steps", "llm_requests"):
+        dist = overall.get(key)
+        if isinstance(dist, dict):
+            table.add_row(f"{key} (median, IQR)", f"{dist['median']} +/- {dist['iqr']}")
+    console.print(table)
+
+    by_task = summary["by_task"]
+    assert isinstance(by_task, dict)
+    unstable = [t for t, row in by_task.items() if isinstance(row, dict) and not row["consistent"]]
+    if unstable:
+        # Instability and a capability gap need different fixes, so they are
+        # never reported as one number.
+        console.print(f"\n[yellow]Inconsistent across seeds:[/yellow] {', '.join(unstable)}")
+
+
 if __name__ == "__main__":
     app()
