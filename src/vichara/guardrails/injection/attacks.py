@@ -85,12 +85,13 @@ class SuccessCheck(BaseModel):
 
     @model_validator(mode="after")
     def _check_operands(self) -> SuccessCheck:
-        if self.kind in (SuccessKind.ANSWER_CONTAINS, SuccessKind.TOOL_ARG_CONTAINS):
-            if not self.marker:
-                raise ValueError(f"{self.kind} needs a marker")
-        if self.kind in (SuccessKind.TOOL_CALLED, SuccessKind.TOOL_ARG_CONTAINS):
-            if not self.tool:
-                raise ValueError(f"{self.kind} needs a tool")
+        needs_marker = (SuccessKind.ANSWER_CONTAINS, SuccessKind.TOOL_ARG_CONTAINS)
+        needs_tool = (SuccessKind.TOOL_CALLED, SuccessKind.TOOL_ARG_CONTAINS)
+
+        if self.kind in needs_marker and not self.marker:
+            raise ValueError(f"{self.kind} needs a marker")
+        if self.kind in needs_tool and not self.tool:
+            raise ValueError(f"{self.kind} needs a tool")
         if self.kind is SuccessKind.TERMINAL_IS and not self.marker:
             raise ValueError("terminal_is needs the terminal reason in marker")
         return self
