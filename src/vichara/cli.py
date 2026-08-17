@@ -457,5 +457,62 @@ def _print_summary(summary: dict[str, object]) -> None:
         console.print(f"\n[yellow]Inconsistent across seeds:[/yellow] {', '.join(unstable)}")
 
 
+@app.command()
+def attack(
+    profile: ProfileOption = None,
+    only: Annotated[str | None, typer.Option("--only", help="Comma-separated attack ids.")] = None,
+    seeds: Annotated[int, typer.Option("--seeds", help="Runs per attack.")] = 1,
+    no_resume: Annotated[
+        bool, typer.Option("--no-resume", help="Re-run completed attacks.")
+    ] = False,
+) -> None:
+    """Run the prompt-injection suite and report attack success rate."""
+    from vichara.eval.injection_suite import (
+        DEFAULT_RESULTS,
+        InjectionSweep,
+        read_attack_results,
+        run_injection_sweep,
+        summarise_attacks,
+    )
+
+    settings = Settings()
+    cfg = load_pipeline_config(profile or settings.profile)
+    configure_logging(settings.log_level, settings.log_format)
+
+    sweep = InjectionSweep(
+        profile=cfg.name,
+        seeds=tuple(range(seeds)),
+        only=tuple(t.strip() for t in only.split(",")) if only else (),
+    )
+    console.print(f"[bold]{cfg.name}[/bold]: running injection suite")
+    run_injection_sweep(settings, cfg, sweep, resume=not no_resume)
+
+    summary = summarise_attacks(
+        read_attack_results(DEFAULT_RESULTS / f"injection-{cfg.name}.jsonl")
+    )
+    if not summary.get("n"):
+        console.print("[yellow]No results.[/yellow]")
+        return
+
+    table = Table(title=f"Injection suite: {cfg.name}", header_style="bold")
+    table.add_column("technique")
+    table.add_column("n", justify="right")
+    table.add_column("ASR", justify="right")
+    by_technique = summary["by_technique"]
+    assert isinstance(by_technique, dict)
+    for name, row in by_technique.items():
+        table.add_row(name, str(row["n"]), f"{row['asr']:.2f}")
+    table.add_row("[bold]overall[/bold]", str(summary["n"]), f"[bold]{summary['asr']:.2f}[/bold]")
+    console.print(table)
+    console.print(
+        f"detection rate {summary['detection_rate']:.2f} | "
+        f"detected but still succeeded: {summary['detected_but_succeeded']}"
+    )
+    successful = summary["successful"]
+    assert isinstance(successful, list)
+    if successful:
+        console.print(f"\n[red]Attacks that worked:[/red] {', '.join(successful)}")
+
+
 if __name__ == "__main__":
     app()
