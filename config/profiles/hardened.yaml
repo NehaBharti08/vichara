@@ -1,0 +1,31 @@
+# Injection defences on. Everything else identical to baseline.
+#
+# The point of a separate profile rather than a flag is that both numbers stay
+# measurable. A baseline attack success rate cannot be obtained from a
+# configuration that already defends, and a defence with no baseline to
+# compare against is an assertion rather than a result.
+#
+# It also keeps the cost visible. Defences are not free: stripping content the
+# agent needed, or warning it about a source that was fine, degrades ordinary
+# task accuracy. Running the full task set under both profiles is how that
+# cost gets reported instead of assumed away.
+
+name: hardened
+description: >-
+  Baseline plus injection defences: delimiter neutralisation, heuristic
+  detection, and imperative stripping. Compared against baseline in
+  docs/PROMPT_INJECTION.md on both attack success rate and ordinary accuracy.
+
+injection:
+  tag_provenance: true
+  # Structural, not heuristic: a payload cannot close a fence it is unable to
+  # write, because the markers are stripped from content before wrapping.
+  neutralise_delimiters: true
+  # Heuristic. Catches obvious directive phrasing after Unicode folding, which
+  # is what defeats the fullwidth-character attack in the corpus.
+  detector_enabled: true
+  # Removes flagged sentences rather than whole documents. Dropping the
+  # document would turn every detection into a denial of service, which is
+  # itself one of the attacks being defended against.
+  strip_imperatives: true
+  on_detection: strip

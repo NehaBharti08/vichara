@@ -20,6 +20,7 @@ from langgraph.types import interrupt
 from vichara.agent.memory import render_observation
 from vichara.agent.nodes.context import AgentContext
 from vichara.agent.state import ActionFingerprint, AgentState, PendingAction
+from vichara.guardrails.injection.defences import guard
 from vichara.logging import bind_step, get_logger
 from vichara.tools.config import RiskClass
 from vichara.trajectory.schema import (
@@ -341,12 +342,18 @@ def execute_node(state: AgentState, context: AgentContext) -> AgentState:
         )
     else:
         result = tool.run(**pending.args)
+        # Untrusted output is scanned before it ever reaches the model, and the
+        # result is recorded on the observation. That is what lets a
+        # compromised trajectory be attributed to a specific tool result
+        # afterwards rather than inferred from the answer.
+        content, scanned = guard(result.content, context.config.injection)
         observation = ObservationRecord(
             step=state.get("step", 0),
             tool=result.tool,
             backend=result.backend,
             ok=result.ok,
-            content=result.content,
+            content=content,
+            injection_flagged=scanned.flagged,
             trust=result.trust.value,
             error_code=result.error_code.value if result.error_code else None,
             retryable=result.retryable,

@@ -112,6 +112,14 @@ ignore = [
 # parameters are inherent rather than accidental.
 "tests/**" = ["ARG001", "ARG002", "ARG005"]
 
+# RUF002 flags ambiguous Unicode -- fullwidth letters that look like ASCII --
+# which is exactly right for ordinary code, where a homoglyph is almost always
+# an accident. These two files are about *detecting* that obfuscation, so the
+# characters are the subject matter rather than a mistake. Scoped to the two
+# files that legitimately need them rather than disabled globally.
+"src/vichara/guardrails/injection/defences.py" = ["RUF001", "RUF002", "RUF003"]
+"tests/guardrails/test_injection.py" = ["ARG001", "ARG002", "ARG005", "RUF001", "RUF002", "RUF003"]
+
 [tool.black]
 line-length = 100
 target-version = ["py311"]
