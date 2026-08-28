@@ -106,6 +106,7 @@ injection:
   neutralise_delimiters: false
   strip_imperatives: false
   detector_enabled: false
+  verify_citations: false
   on_detection: log
 
 tools:

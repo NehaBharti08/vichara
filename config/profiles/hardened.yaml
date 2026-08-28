@@ -28,4 +28,8 @@ injection:
   # document would turn every detection into a denial of service, which is
   # itself one of the attacks being defended against.
   strip_imperatives: true
+  # The only defence aimed at the worst measured result. A citation the tools
+  # never returned is removed from the answer before it is shown -- the agent
+  # may cite what it retrieved and nothing else.
+  verify_citations: true
   on_detection: strip

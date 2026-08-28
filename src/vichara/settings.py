@@ -326,6 +326,16 @@ class InjectionConfig(BaseModel):
     detector_enabled: bool = False
     on_detection: Literal["log", "strip", "quarantine", "abort"] = "log"
 
+    verify_citations: bool = False
+    """Remove any citation the tools did not actually return.
+
+    Added because of a measurement rather than a hunch: the Phase 5 sweep put
+    false-citation attacks at ASR 1.00. No text filter separates a payload
+    asking for a citation from a document naming its source, but refusing to
+    emit a source no tool produced does, and it is mechanical.
+
+    Off in baseline so the before-and-after stays measurable."""
+
 
 class ToolsConfig(BaseModel):
     """Retrieval and search shaping. Registration itself lives in tools.yaml."""
