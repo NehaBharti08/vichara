@@ -173,6 +173,10 @@ class TrajectoryRecord(BaseModel):
 
     final_answer: str | None = None
     citations: list[dict[str, Any]] = Field(default_factory=list)
+    citations_fabricated: list[str] = Field(default_factory=list)
+    """Citation-shaped spans in the answer that no tool produced. Recorded even
+    when nothing is removed, so a baseline run shows how often the agent
+    invents a source."""
     terminal_reason: TerminalReason | None = None
 
     llm_requests: int = 0

@@ -7,8 +7,10 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from vichara.agent.memory import compress, partition, render_observation
 from vichara.agent.nodes.context import AgentContext
 from vichara.agent.state import AgentState
+from vichara.guardrails.citations import audit
 from vichara.llm.provider import text_of
 from vichara.logging import bind_step, get_logger
+from vichara.tools.base import Citation
 from vichara.trajectory.schema import StepKind, TerminalReason
 
 log = get_logger(__name__)
@@ -72,6 +74,19 @@ def synthesize_node(state: AgentState, context: AgentContext) -> AgentState:
             terminal_reason=TerminalReason.FATAL_ERROR,
             halt_detail=f"Could not write the answer: {exc}",
         )
+
+    # Every citation in the answer must trace to something a tool returned.
+    # The Phase 5 sweep put false-citation attacks at ASR 1.00, and no text
+    # filter separates a payload asking for a citation from a document naming
+    # its source -- but refusing to emit a source no tool produced does.
+    #
+    # The audit runs in both profiles so a baseline trajectory still records
+    # how often the agent invents a source; only the removal is gated.
+    tool_citations = [Citation.model_validate(c) for c in state.get("citations", [])]
+    result = audit(answer, tool_citations)
+    context.recorder.record.citations_fabricated = result.fabricated
+    if result.fabricated and context.config.injection.verify_citations:
+        answer = result.answer
 
     context.recorder.end_step()
     context.recorder.record.final_answer = answer
