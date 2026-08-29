@@ -94,6 +94,49 @@ jobs:
           SANDBOX_BACKEND: docker
         run: uv run pytest tests/sandbox -q -m "sandbox or not sandbox"
 
+  image:
+    name: docker image builds and starts
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    # The Dockerfile cannot be verified on the maintainer's machine -- there is
+    # no Docker daemon there -- so this job is the only thing standing between
+    # a broken image and a broken Hugging Face Space. It builds the real image
+    # and proves the container can answer its own health check, which is the
+    # cheapest end-to-end signal available: health exercises config loading,
+    # tool construction, the Node runtime and every writable path.
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: vichara:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Health check inside the container
+        run: docker run --rm vichara:ci uv run vichara health
+
+      - name: Capability set is honest about the sandbox
+        # Node is installed in the image, so run_python must come up. If this
+        # regresses the Space would still start and silently lose a tool.
+        run: |
+          docker run --rm vichara:ci uv run vichara tools | tee /tmp/tools.txt
+          grep -q "pyodide" /tmp/tools.txt
+
+      - name: No credentials baked into the image
+        run: |
+          if docker run --rm vichara:ci sh -c 'test -f .env'; then
+            echo "::error::.env was copied into the image"
+            exit 1
+          fi
+          echo "no .env in image"
+
   secrets:
     name: secret scan
     runs-on: ubuntu-latest
