@@ -2,6 +2,8 @@
 
 [![CI](https://github.com/NehaBharti08/vichara/actions/workflows/ci.yml/badge.svg)](https://github.com/NehaBharti08/vichara/actions/workflows/ci.yml)
 
+**[Live demo — the trajectory viewer](https://huggingface.co/spaces/nehabharti0802/vichara)**
+
 A study agent that plans a multi-step approach to an academic question, calls tools, and synthesises a cited answer — evaluated on its **trajectory**, not just its answer.
 
 The agent loop is the least interesting part of this repository. A LangGraph ReAct loop is two days of work and thousands of identical ones exist. What follows is what this repo is actually for.
@@ -41,6 +43,19 @@ Citation verification took false-citation attacks from 0.25 to **0.00**. The one
 **Evidence:** [`docs/EVALUATION.md`](docs/EVALUATION.md) · [`docs/PROMPT_INJECTION.md`](docs/PROMPT_INJECTION.md) · [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md) · raw results in [`eval_results/`](eval_results/)
 
 ---
+
+## The demo
+
+**[huggingface.co/spaces/nehabharti0802/vichara](https://huggingface.co/spaces/nehabharti0802/vichara)** — seven recorded runs, each showing one behaviour worth looking at: a grounded answer, multi-tool orchestration, a correct refusal, a clarifying question, a guardrail stopping a runaway, a detected prompt injection, and a fabricated citation being removed.
+
+It is a **static** page. Hugging Face withdrew free Docker Spaces partway through this project, and rather than pay for a live agent the viewer now serves recorded trajectories. That turned out to suit it: the viewer was always about *displaying* a trajectory rather than producing one, and a static page loads instantly, never sleeps, and cannot show a cold start or an exhausted quota — the three ways a hosted agent demo usually embarrasses its author.
+
+Regenerate and redeploy with:
+
+```bash
+uv run python scripts/export_static.py
+uv run python scripts/deploy_space.py --repo-id <user>/vichara
+```
 
 ## Quick start
 
