@@ -1,0 +1,37 @@
+# Anything not needed to build or run the image.
+#
+# The security-relevant entries are first: .env holds live API keys and
+# sessions/ holds whatever the file tool wrote. Both would otherwise be copied
+# into an image that gets pushed to a public Space.
+.env
+.env.*
+!.env.example
+sessions/
+workspaces/
+trajectories/
+*.sqlite
+*.sqlite3
+
+.git/
+.github/
+.venv/
+node_modules/
+.pyodide_cache/
+
+__pycache__/
+*.py[cod]
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Tests and eval evidence are the repository's argument, not the runtime's.
+# Excluding them keeps the image smaller and the Space's build faster; they
+# stay in git where a reviewer reads them.
+tests/
+eval_results/
+docs/
+scripts/
+*.md
+!README.md

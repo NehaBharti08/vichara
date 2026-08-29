@@ -1,0 +1,86 @@
+name: Evaluation
+
+# Manual only. An evaluation sweep spends real model quota, and on the free
+# tier the binding resource is requests per day -- a sweep triggered by every
+# push would exhaust the day's allowance before lunch and leave nothing for
+# development. The runner is resumable, so an interrupted run is not lost.
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: "Config profile"
+        default: baseline
+        type: choice
+        options: [baseline, hardened]
+      repeats:
+        description: "Runs per task (3 routine, 5 headline)"
+        default: "3"
+        type: string
+      suite:
+        description: "Which suite to run"
+        default: tasks
+        type: choice
+        options: [tasks, injection, both]
+      max_requests:
+        description: "Stop before exhausting the quota"
+        default: "600"
+        type: string
+
+concurrency:
+  group: eval-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  sweep:
+    name: sweep
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: |
+          uv sync --frozen
+          npm ci
+
+      - name: Task sweep
+        if: inputs.suite == 'tasks' || inputs.suite == 'both'
+        env:
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+        run: |
+          uv run vichara evaluate             --profile "${{ inputs.profile }}"             --repeats "${{ inputs.repeats }}"             --max-requests "${{ inputs.max_requests }}"             --report "docs/EVALUATION.md"
+
+      - name: Injection sweep
+        if: inputs.suite == 'injection' || inputs.suite == 'both'
+        env:
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+        run: uv run vichara attack --profile "${{ inputs.profile }}"
+
+      # Uploaded rather than committed. A workflow that pushes to the default
+      # branch is a workflow that can rewrite the evidence behind a published
+      # number without a human reading the diff first.
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-${{ inputs.profile }}-${{ github.run_id }}
+          path: |
+            eval_results/
+            docs/EVALUATION.md
+          retention-days: 30
