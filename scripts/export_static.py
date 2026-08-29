@@ -1,0 +1,175 @@
+"""Build the static demo payload.
+
+Hugging Face removed free Docker Spaces, so the hosted demo is a static page
+rather than a live agent. That is a smaller demo and a more reliable one: it
+loads instantly, never sleeps, and cannot show a cold-start error or an
+exhausted quota, which are the three ways a hosted agent demo usually
+embarrasses its author.
+
+What it shows is unchanged, because the viewer was always about *displaying* a
+trajectory rather than producing one. The curation below is the whole design
+decision: a reviewer with thirty seconds should land on runs that demonstrate
+the interesting behaviour, not on whichever trajectory happened to be last.
+"""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Any
+
+ROOT = Path(__file__).resolve().parents[1]
+TRAJECTORIES = ROOT / "trajectories" / "runs.jsonl"
+OUT = ROOT / "site" / "data.json"
+
+MAX_OBS_CHARS = 900
+"""Observation bodies are truncated. A single retrieval result runs to
+kilobytes and the page has to stay small enough to load instantly on a phone."""
+
+
+def load() -> list[dict[str, Any]]:
+    rows = []
+    for line in TRAJECTORIES.read_text(encoding="utf-8").splitlines():
+        if line.strip():
+            try:
+                rows.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+    return rows
+
+
+def tools_used(record: dict[str, Any]) -> set[str]:
+    return {c["tool"] for s in record.get("steps", []) for c in s.get("tool_calls", [])}
+
+
+def flagged(record: dict[str, Any]) -> bool:
+    return any(
+        o.get("injection_flagged")
+        for s in record.get("steps", [])
+        for o in s.get("observations", [])
+    )
+
+
+def blocked(record: dict[str, Any]) -> bool:
+    return any(e.get("action") == "block" for e in record.get("guardrail_events", []))
+
+
+def curate(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Pick one clear example of each behaviour worth demonstrating.
+
+    Ordered so the page tells a story: it works, it works on harder things, it
+    declines when it should, it asks when the question is ambiguous, it stops
+    itself, and it notices when a document tries to give it orders.
+    """
+    wanted: list[tuple[str, str, Any]] = [
+        (
+            "Grounded answer",
+            "A textbook question answered with citations carrying real printed page numbers.",
+            lambda r: r.get("terminal_reason") == "answered"
+            and tools_used(r) == {"textbook_search"}
+            and len(r.get("citations", [])) >= 2
+            and not flagged(r),
+        ),
+        (
+            "Multi-tool orchestration",
+            "Retrieves a value from the textbook, then computes with it in the sandbox.",
+            lambda r: r.get("terminal_reason") == "answered"
+            and {"textbook_search", "run_python"} <= tools_used(r),
+        ),
+        (
+            "Correct refusal",
+            "An impossible question declined in the planner, before any tool is called. "
+            "Refusing at step fifteen would be a failure even with the same words.",
+            lambda r: r.get("terminal_reason") == "refused" and not tools_used(r),
+        ),
+        (
+            "Asks instead of guessing",
+            "An ambiguous question. Silently picking one reading and answering "
+            "confidently is the failure an accuracy-only metric scores as success.",
+            lambda r: r.get("terminal_reason") == "clarify",
+        ),
+        (
+            "Guardrail stops a runaway",
+            "A ceiling fires. The run answers from the evidence it already has "
+            "rather than discarding it.",
+            lambda r: blocked(r) and r.get("citations"),
+        ),
+        (
+            "Prompt injection, detected",
+            "A retrieved document contains instructions addressed to the agent. "
+            "The scanner flags it and the agent reports it instead of obeying.",
+            lambda r: flagged(r) and r.get("terminal_reason") == "answered",
+        ),
+        (
+            "Fabricated citation removed",
+            "The document told the agent to cite a source no tool returned. "
+            "Citation verification stripped it before the answer was shown.",
+            lambda r: bool(r.get("citations_fabricated")),
+        ),
+    ]
+
+    chosen: list[dict[str, Any]] = []
+    used: set[str] = set()
+    for title, why, predicate in wanted:
+        for record in rows:
+            if record["session_id"] in used:
+                continue
+            try:
+                if predicate(record):
+                    chosen.append({"title": title, "why": why, "record": trim(record)})
+                    used.add(record["session_id"])
+                    break
+            except (KeyError, TypeError):
+                continue
+    return chosen
+
+
+def trim(record: dict[str, Any]) -> dict[str, Any]:
+    """Shrink a record to what the page renders."""
+    out = dict(record)
+    steps = []
+    for step in record.get("steps", []):
+        copy = dict(step)
+        copy["observations"] = [
+            {
+                **obs,
+                "content": (obs.get("content") or "")[:MAX_OBS_CHARS],
+                "truncated_for_display": len(obs.get("content") or "") > MAX_OBS_CHARS,
+            }
+            for obs in step.get("observations", [])
+        ]
+        steps.append(copy)
+    out["steps"] = steps
+    return out
+
+
+def main() -> int:
+    rows = load()
+    examples = curate(rows)
+
+    payload = {
+        "generated_from": len(rows),
+        "examples": examples,
+        "metrics": {
+            "tasks": 41,
+            "terminal_correct": 0.976,
+            "tool_precision": 1.00,
+            "forbidden_tool_rate": 0.0,
+            "refusal_correct": 1.00,
+            "step_efficiency": 0.333,
+            "asr_baseline": 0.11,
+            "asr_hardened": 0.04,
+        },
+    }
+    OUT.parent.mkdir(parents=True, exist_ok=True)
+    OUT.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+
+    print(f"{len(examples)} examples from {len(rows)} trajectories -> {OUT}")
+    for example in examples:
+        print(f"  - {example['title']}: {example['record']['session_id']}")
+    print(f"  {OUT.stat().st_size / 1024:.0f} KB")
+    return 0 if examples else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vichara — trajectory viewer</title>
+<style>
+/* No framework and no CDN. The page has to load instantly and keep working for
+   as long as the repository exists, which rules out anything that can 404 in
+   two years. */
+:root{
+  --bg:#ffffff; --fg:#14171a; --muted:#5b6470; --line:#e3e6ea;
+  --card:#f7f8fa; --accent:#2f6feb; --warn:#b45309; --danger:#b91c1c;
+  --ok:#15803d; --code:#f2f4f7;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0f1115; --fg:#e6e8eb; --muted:#9aa4b2; --line:#242a33;
+    --card:#161a21; --accent:#7aa2f7; --warn:#f0b429; --danger:#f87171;
+    --ok:#4ade80; --code:#11151b;
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);
+  font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+.wrap{max-width:960px;margin:0 auto;padding:32px 20px 80px}
+h1{font-size:2rem;margin:0 0 4px}
+h2{font-size:1.15rem;margin:32px 0 12px}
+a{color:var(--accent)}
+.sub{color:var(--muted);margin:0 0 24px}
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:24px 0}
+.metric{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.metric .v{font-size:1.4rem;font-weight:600;font-variant-numeric:tabular-nums}
+.metric .k{color:var(--muted);font-size:.8rem;text-transform:uppercase;letter-spacing:.04em}
+.metric.weak .v{color:var(--warn)}
+.note{background:var(--card);border-left:3px solid var(--accent);padding:12px 16px;
+  border-radius:0 8px 8px 0;margin:20px 0;color:var(--muted);font-size:.92rem}
+.tabs{display:flex;flex-wrap:wrap;gap:8px;margin:24px 0 20px}
+.tab{background:var(--card);border:1px solid var(--line);color:var(--fg);
+  padding:8px 14px;border-radius:999px;cursor:pointer;font-size:.9rem}
+.tab[aria-selected="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+.why{color:var(--muted);margin:0 0 20px;font-size:.95rem}
+.panel{border:1px solid var(--line);border-radius:12px;padding:18px;margin:0 0 18px;background:var(--card)}
+.panel h3{margin:0 0 10px;font-size:.8rem;text-transform:uppercase;
+  letter-spacing:.05em;color:var(--muted)}
+.q{font-weight:600;margin:0 0 14px}
+.answer{white-space:pre-wrap}
+ul{margin:0;padding-left:20px}
+li{margin:4px 0}
+.step{border-left:2px solid var(--line);padding:0 0 14px 16px;margin-left:6px;position:relative}
+.step::before{content:"";position:absolute;left:-6px;top:6px;width:10px;height:10px;
+  border-radius:50%;background:var(--line)}
+.step.tool::before{background:var(--accent)}
+.step.blocked::before{background:var(--danger)}
+.step .head{font-weight:600;font-size:.92rem}
+.step .meta{color:var(--muted);font-size:.82rem}
+.thought{color:var(--muted);font-style:italic;margin:4px 0}
+code,pre{background:var(--code);border-radius:6px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+code{padding:1px 5px;font-size:.86em}
+pre{padding:12px;overflow-x:auto;font-size:.82rem;margin:8px 0 0;border:1px solid var(--line)}
+details{margin-top:8px}
+summary{cursor:pointer;color:var(--muted);font-size:.85rem}
+.untrusted summary{color:var(--warn)}
+.tag{display:inline-block;padding:1px 7px;border-radius:999px;font-size:.72rem;
+  border:1px solid var(--line);margin-left:6px;vertical-align:middle}
+.tag.bad{color:var(--danger);border-color:var(--danger)}
+.tag.warn{color:var(--warn);border-color:var(--warn)}
+.tag.ok{color:var(--ok);border-color:var(--ok)}
+table{border-collapse:collapse;width:100%;font-size:.9rem}
+td,th{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left}
+th{color:var(--muted);font-weight:500}
+.removed{text-decoration:line-through;color:var(--danger)}
+footer{margin-top:48px;padding-top:20px;border-top:1px solid var(--line);
+  color:var(--muted);font-size:.9rem}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Vichara</h1>
+  <p class="sub">A study agent evaluated on its <strong>trajectory</strong>, not just its answer.</p>
+
+  <div class="metrics" id="metrics"></div>
+
+  <div class="note">
+    <strong>These are recorded runs.</strong> Hugging Face no longer offers free
+    Docker Spaces, so this is a static page rather than a live agent — it loads
+    instantly and cannot show a cold start or an exhausted quota. Everything
+    below came from the real agent and is committed in the repository.
+    Every number is n=1: a shape, not a rate.
+  </div>
+
+  <h2>Seven behaviours worth looking at</h2>
+  <div class="tabs" id="tabs" role="tablist"></div>
+  <p class="why" id="why"></p>
+  <div id="view"></div>
+
+  <footer>
+    Source, evaluation, threat model and the prompt-injection study —
+    <a href="https://github.com/NehaBharti08/vichara">github.com/NehaBharti08/vichara</a>
+  </footer>
+</div>
+
+<script>
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c =>
+  ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+const METRICS = [
+  ["terminal_correct", "correct", false],
+  ["tool_precision", "tool precision", false],
+  ["forbidden_tool_rate", "forbidden tools", false],
+  ["refusal_correct", "refusal", false],
+  ["step_efficiency", "step efficiency", true],
+  ["asr_hardened", "attack success", false],
+];
+
+function renderMetrics(m){
+  document.getElementById("metrics").innerHTML = METRICS.map(([k, label, weak]) =>
+    `<div class="metric ${weak ? "weak" : ""}">
+       <div class="v">${m[k].toFixed(2)}</div>
+       <div class="k">${label}</div>
+     </div>`).join("");
+}
+
+function stepClass(step, blockedSteps){
+  if (blockedSteps.has(step.index)) return "step blocked";
+  return (step.tool_calls || []).length || (step.observations || []).length
+    ? "step tool" : "step";
+}
+
+function renderSteps(rec){
+  const blocked = new Set((rec.guardrail_events || [])
+    .filter(e => e.action === "block").map(e => e.step));
+  return (rec.steps || []).map(s => {
+    const bits = [];
+    bits.push(`<div class="head">${s.index}. ${esc(s.kind)}
+      <span class="meta">· ${Math.round(s.duration_ms)} ms</span>
+      ${blocked.has(s.index) ? '<span class="tag bad">guardrail blocked</span>' : ""}</div>`);
+    if (s.thought) bits.push(`<div class="thought">${esc(s.thought)}</div>`);
+    for (const c of s.tool_calls || []){
+      const args = Object.entries(c.args || {})
+        .map(([k, v]) => `${k}=${esc(JSON.stringify(v)).slice(0, 90)}`).join(", ");
+      bits.push(`<div><code>${esc(c.tool)}(${args})</code></div>`);
+    }
+    for (const o of s.observations || []){
+      const status = o.ok ? '<span class="tag ok">ok</span>'
+                          : `<span class="tag bad">failed: ${esc(o.error_code)}</span>`;
+      const flag = o.injection_flagged
+        ? '<span class="tag warn">injection flagged</span>' : "";
+      bits.push(`<div class="meta">${esc(o.tool)} → ${o.raw_bytes} bytes,
+        ${Math.round(o.latency_ms)} ms ${status}${flag}</div>`);
+      // Untrusted output goes in its own disclosure, labelled untrusted.
+      // Rendering it like the agent's own reasoning would teach the reader the
+      // wrong model of where the risk lives.
+      const label = o.trust === "untrusted" ? "untrusted tool output" : "tool output";
+      bits.push(`<details class="${o.trust === "untrusted" ? "untrusted" : ""}">
+        <summary>${label}</summary><pre>${esc(o.content)}${
+          o.truncated_for_display ? "\n… truncated for display" : ""}</pre></details>`);
+    }
+    return `<div class="${stepClass(s, blocked)}">${bits.join("")}</div>`;
+  }).join("");
+}
+
+function renderCitations(rec){
+  const seen = new Set();
+  const rows = [];
+  for (const c of rec.citations || []){
+    if (c.source && !seen.has(c.source)){ seen.add(c.source); rows.push(esc(c.source)); }
+  }
+  let html = rows.length
+    ? `<ul>${rows.map(r => `<li>${r}</li>`).join("")}</ul>`
+    : `<p class="meta">None — expected for a refusal or a clarification.</p>`;
+  if ((rec.citations_fabricated || []).length){
+    html += `<h3 style="margin-top:14px">Removed — no tool returned these</h3><ul>${
+      rec.citations_fabricated.map(f =>
+        `<li class="removed">${esc(f).slice(0, 160)}</li>`).join("")}</ul>`;
+  }
+  return html;
+}
+
+function renderGuardrails(rec){
+  const ev = rec.guardrail_events || [];
+  if (!ev.length) return `<p class="meta">None fired.</p>`;
+  return `<table><tr><th>step</th><th>rule</th><th>action</th><th>detail</th></tr>${
+    ev.map(e => `<tr><td>${e.step}</td><td><code>${esc(e.rule)}</code></td>
+      <td>${e.action === "block" ? `<strong>${esc(e.action)}</strong>` : esc(e.action)}</td>
+      <td>${esc(e.detail).slice(0, 80)}</td></tr>`).join("")}</table>`;
+}
+
+function renderCost(rec){
+  const r = [
+    ["terminal", `<code>${esc(rec.terminal_reason)}</code>`],
+    ["model requests", rec.llm_requests],
+    ["cache hits", rec.cache_hits],
+    ["tokens", rec.total_tokens],
+    ["wall clock", `${rec.wall_clock_s}s`],
+    ["profile", `<code>${esc(rec.profile)}</code>`],
+  ];
+  return `<table>${r.map(([k, v]) => `<tr><th>${k}</th><td>${v}</td></tr>`).join("")}</table>`;
+}
+
+function show(data, i){
+  const ex = data.examples[i];
+  const rec = ex.record;
+  document.getElementById("why").textContent = ex.why;
+  document.querySelectorAll(".tab").forEach((t, n) =>
+    t.setAttribute("aria-selected", String(n === i)));
+  document.getElementById("view").innerHTML = `
+    <div class="panel"><h3>Question</h3><p class="q">${esc(rec.task)}</p>
+      <h3>Answer</h3><div class="answer">${esc(rec.final_answer)}</div></div>
+    <div class="panel"><h3>Sources — returned by a tool</h3>${renderCitations(rec)}</div>
+    <div class="panel"><h3>Cost</h3>${renderCost(rec)}</div>
+    <div class="panel"><h3>Guardrails</h3>${renderGuardrails(rec)}</div>
+    <div class="panel"><h3>Trajectory</h3>${renderSteps(rec)}</div>`;
+}
+
+fetch("data.json").then(r => r.json()).then(data => {
+  renderMetrics(data.metrics);
+  document.getElementById("tabs").innerHTML = data.examples
+    .map((e, i) => `<button class="tab" role="tab" data-i="${i}">${esc(e.title)}</button>`)
+    .join("");
+  document.querySelectorAll(".tab").forEach(t =>
+    t.addEventListener("click", () => show(data, Number(t.dataset.i))));
+  show(data, 0);
+}).catch(e => {
+  document.getElementById("view").innerHTML =
+    `<div class="panel">Could not load recorded trajectories: ${esc(e.message)}</div>`;
+});
+</script>
+</body>
+</html>
