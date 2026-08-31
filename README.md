@@ -21,9 +21,13 @@ The agent loop is the least interesting part of this repository. A LangGraph ReA
 | forbidden-tool rate | **0.000** | never reached for a tool the task forbids |
 | refusal correctness | **1.00** | every impossible task refused, all within the step gate |
 | answer correctness | 0.903 | 3 substantive failures, all multi-tool |
-| **step efficiency** | **0.333** | **takes ~3× the optimal path — the standing weakness** |
+| **step efficiency** | **1.00** (median) | takes the annotated optimal path; a tail of runs does not — see below |
 
-Step efficiency is the finding. The agent reaches the right answer by a wasteful route, and **every one of those runs scores *correct* on terminal state**. An accuracy-only evaluation would never surface it. That is the entire argument for annotating optimal paths by hand.
+**Step efficiency was reported as 0.333 and that was a bug in the metric, not the agent.** The numerator counted *tool calls a human would make*; the denominator counted *graph nodes executed*. A flawless single-tool run executes plan → act → execute → synthesize and scored 0.333 for doing exactly the right thing. Counting the same unit on both sides gives a median of **1.00**.
+
+The real signal survives the correction: a tail of runs makes five tool calls where one would do. The median run is optimal; the worst are not. That is still the thing an accuracy-only evaluation would never surface, which remains the argument for annotating optimal paths by hand.
+
+This is the **second** measurement bug found in this repo's own instruments, after the injection scoring. Both were found by checking arithmetic against a single concrete case, and both had been reported as agent weaknesses.
 
 ### Prompt injection
 

@@ -514,5 +514,42 @@ def attack(
         console.print(f"\n[red]Attacks that worked:[/red] {', '.join(successful)}")
 
 
+@app.command()
+def rescore(
+    profile: ProfileOption = None,
+    trajectories: Annotated[
+        Path | None, typer.Option("--trajectories", help="Trajectory store to read.")
+    ] = None,
+) -> None:
+    """Recompute every metric from stored trajectories. Spends no quota.
+
+    Metrics are pure functions of (trajectory, gold task), so a metric fix does
+    not require re-running the agent -- which is the whole reason they were
+    written that way. Use this after changing a metric, so results from before
+    and after the change are not silently incomparable.
+    """
+    from vichara.agent.runner import DEFAULT_TRAJECTORY_STORE
+    from vichara.eval.rescore import rescore as rebuild
+    from vichara.eval.runner import DEFAULT_RESULTS
+
+    settings = Settings()
+    source = trajectories or settings.resolved(str(DEFAULT_TRAJECTORY_STORE))
+    if not source.exists():
+        console.print(f"[red]No trajectory store at {source}[/red]")
+        raise typer.Exit(code=1)
+
+    counts = rebuild(source, DEFAULT_RESULTS, profile=profile)
+    if not counts:
+        console.print("[yellow]No trajectories matched a gold task.[/yellow]")
+        raise typer.Exit(code=1)
+
+    table = Table(title="Rescored from stored trajectories", header_style="bold")
+    table.add_column("profile")
+    table.add_column("runs", justify="right")
+    for name, count in sorted(counts.items()):
+        table.add_row(name, str(count))
+    console.print(table)
+
+
 if __name__ == "__main__":
     app()

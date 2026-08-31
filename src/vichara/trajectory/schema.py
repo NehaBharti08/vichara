@@ -196,11 +196,30 @@ class TrajectoryRecord(BaseModel):
 
     @property
     def agent_steps(self) -> int:
-        """Steps that consumed budget.
+        """Tool calls made. The unit step efficiency is measured in.
 
-        Bookkeeping nodes -- compression, guard checks -- are excluded on
-        purpose: charging the agent for the memory manager's work would make
-        step efficiency a measure of the framework rather than the agent.
+        This counted graph nodes -- act, execute and reflect -- until the
+        arithmetic was checked against a gold task. The optimal path is
+        annotated as a sequence of *tool calls*, so dividing it by a node count
+        compares two different units: a flawless single-tool run executes
+        plan, act, execute, synthesize and scored 0.333 for doing exactly the
+        right thing. The reported median of 0.333 was that artifact, not
+        agent waste.
+
+        Counting tool calls makes numerator and denominator the same unit, so
+        1.0 means "took the annotated optimal path" and anything below it is
+        real waste. Node count is still available as `graph_steps` for cost
+        analysis, where it is the right measure.
+        """
+        return len(self.tool_calls_made)
+
+    @property
+    def graph_steps(self) -> int:
+        """Nodes executed that consumed budget.
+
+        The right measure for cost, and the wrong one for efficiency.
+        Bookkeeping nodes -- compression, guard checks -- are excluded: charging
+        the agent for the memory manager's work would measure the framework.
         """
         return sum(
             1
