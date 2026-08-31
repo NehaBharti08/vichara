@@ -30,6 +30,14 @@ log = get_logger(__name__)
 
 DEFAULT_RESULTS = Path("eval_results")
 
+MAX_CONSECUTIVE_FAILURES = 5
+"""Stop the sweep after this many failures in a row.
+
+One failure is a blip. Five in a row is the provider being down or the day's
+quota being gone, and churning through the remaining tasks to confirm it wastes
+an hour and produces nothing. Failed pairs are never recorded, so resuming
+later picks them up unchanged."""
+
 
 @dataclass
 class SweepConfig:
@@ -116,6 +124,7 @@ def run_sweep(
     selected = [t for t in tasks.tasks if not sweep.only or t.id in sweep.only]
     seeds = sweep.seeds[: sweep.repeats]
     requests_used = 0
+    consecutive_failures = 0
     produced: list[TaskResult] = []
 
     for task in selected:
@@ -132,6 +141,34 @@ def run_sweep(
 
             result = _run_one(settings, config, task, seed, sweep)
             requests_used += result.llm_requests
+
+            # A fatal error is almost always the provider being unreachable --
+            # on a free tier, the day's request quota running out mid-sweep.
+            # Persisting it would be the worst possible outcome: resume skips
+            # completed (task, seed) pairs, so a quota outage would be baked
+            # into the results permanently and reported as the agent failing.
+            # It is not recorded, so the pair simply runs again later.
+            if result.terminal_reason == "fatal_error":
+                consecutive_failures += 1
+                log.warning(
+                    "run failed, not recorded",
+                    task=task.id,
+                    seed=seed,
+                    consecutive=consecutive_failures,
+                )
+                if consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
+                    # One failure is a blip; several in a row is the provider
+                    # being down or the quota being gone. Churning through the
+                    # remaining tasks would spend an hour proving it.
+                    log.warning(
+                        "halting: the provider looks unavailable",
+                        consecutive=consecutive_failures,
+                        hint="resume later; nothing was recorded for the failed pairs",
+                    )
+                    return produced
+                continue
+
+            consecutive_failures = 0
             store.append(result)
             produced.append(result)
             log.info(
