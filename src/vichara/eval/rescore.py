@@ -21,7 +21,7 @@ from vichara.eval.metrics import TaskResult, score
 from vichara.eval.tasks.loader import load_tasks
 from vichara.logging import get_logger
 from vichara.trajectory.recorder import read_trajectories
-from vichara.trajectory.schema import TrajectoryRecord
+from vichara.trajectory.schema import TerminalReason, TrajectoryRecord
 
 log = get_logger(__name__)
 
@@ -46,12 +46,25 @@ def rescore(
     tasks = {t.id: t for t in load_tasks().tasks}
     latest: dict[tuple[str, str, int | None], TrajectoryRecord] = {}
     skipped = 0
+    fatal = 0
 
     for record in read_trajectories(trajectories):
         if record.task_id not in tasks:
             skipped += 1
             continue
         if profile and record.profile != profile:
+            continue
+        if record.terminal_reason is TerminalReason.FATAL_ERROR:
+            # A provider outage is not agent behaviour. On a free tier the
+            # quota runs out mid-sweep, every remaining task returns
+            # fatal_error, and scoring those as failures would report the
+            # agent losing capability it never lost.
+            #
+            # Dropping the pair entirely -- rather than scoring it -- is what
+            # makes the gap visible: the run count falls short of tasks x
+            # seeds, which is a question a reader asks, where a quietly
+            # depressed accuracy number is one nobody thinks to.
+            fatal += 1
             continue
         # Later lines overwrite earlier ones: the file is append-only and in
         # chronological order.
@@ -74,6 +87,11 @@ def rescore(
 
     if skipped:
         log.info("ignored trajectories with no gold task", count=skipped)
+    if fatal:
+        log.warning(
+            "dropped runs the provider failed; re-run those pairs to close the gap",
+            count=fatal,
+        )
     return counts
 
 
