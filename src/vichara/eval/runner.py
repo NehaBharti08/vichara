@@ -19,12 +19,14 @@ from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from vichara.agent.nodes.context import PROMPT_DIR
 from vichara.agent.runner import AgentSession
 from vichara.eval.faults import FaultSpec, wrap_with_fault
-from vichara.eval.metrics import TaskResult, score, score_recovery
+from vichara.eval.metrics import TaskResult, agent_version_of, score, score_recovery
 from vichara.eval.tasks.schema import GoldTask, TaskSet
 from vichara.logging import get_logger
 from vichara.settings import PipelineConfig, Settings
+from vichara.trajectory.recorder import hash_prompts
 
 log = get_logger(__name__)
 
@@ -68,8 +70,20 @@ class ResultStore:
         self.path = path
         self.path.parent.mkdir(parents=True, exist_ok=True)
 
-    def completed(self) -> set[tuple[str, int | None]]:
-        """``(task_id, seed)`` pairs already scored."""
+    def completed(self, agent_version: str) -> set[tuple[str, int | None]]:
+        """``(task_id, seed)`` pairs already scored **for this agent**.
+
+        Scoping this to the prompt set is the difference between resuming a
+        sweep and silently finishing someone else's. Editing a prompt makes
+        every pair recorded before the edit describe a different agent, and a
+        resume keyed on ``(task, seed)`` alone would skip all of them and write
+        the remainder into the same file -- producing one results table
+        spanning two agents, with a row count that looks entirely correct.
+
+        Rows carrying no version are treated as not done. They were produced by
+        an unknown prompt set, and re-running a pair is cheap next to reporting
+        a number nobody can attribute.
+        """
         done: set[tuple[str, int | None]] = set()
         if not self.path.exists():
             return done
@@ -80,6 +94,8 @@ class ResultStore:
                     continue
                 try:
                     row = json.loads(line)
+                    if row.get("agent_version", "") != agent_version:
+                        continue
                     done.add((row["task_id"], row.get("seed")))
                 except (json.JSONDecodeError, KeyError):
                     # A truncated final line from an interrupted sweep. Skipping
@@ -117,9 +133,12 @@ def run_sweep(
 ) -> list[TaskResult]:
     """Run every (task, seed) pair not already recorded."""
     store = ResultStore((results_dir or DEFAULT_RESULTS) / f"{sweep.profile}.jsonl")
-    done = store.completed() if resume else set()
+    version = agent_version_of(hash_prompts(PROMPT_DIR))
+    done = store.completed(version) if resume else set()
     if done:
-        log.info("resuming sweep", already_done=len(done))
+        log.info("resuming sweep", already_done=len(done), agent_version=version)
+    else:
+        log.info("no prior results for this agent; running the full sweep", agent_version=version)
 
     selected = [t for t in tasks.tasks if not sweep.only or t.id in sweep.only]
     seeds = sweep.seeds[: sweep.repeats]
