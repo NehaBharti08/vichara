@@ -104,3 +104,7 @@ desktop.ini
 # ---------------------------------------------------------------------------
 .gradio/
 flagged/
+
+# Sweep console output. Operational noise -- the durable record of a run is
+# trajectories/runs.jsonl and eval_results/, both of which are structured.
+*.log
