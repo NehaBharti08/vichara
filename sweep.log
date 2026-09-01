@@ -1,0 +1,561 @@
+baseline: 16 tasks x 5 seeds
+{"agent_version": "840dbafa5013", "event": "no prior results for this agent; running the full sweep", "level": "info", "logger": "vichara.eval.runner", "timestamp": "2026-09-01T17:57:25.806841Z"}
+{"passages": 440, "path": "D:\\AI_Portfolio\\Projects\\ReAct Agent\\data\\fixtures\\rag_corpus.jsonl", "event": "fixture corpus indexed", "level": "info", "logger": "vichara.tools.rag.fixture", "timestamp": "2026-09-01T17:57:25.822242Z"}
+{"count": 10, "path": "D:\\AI_Portfolio\\Projects\\ReAct Agent\\data\\fixtures\\search_responses.jsonl", "event": "search recordings loaded", "level": "info", "logger": "vichara.tools.websearch.fixture", "timestamp": "2026-09-01T17:57:25.886454Z"}
+{"available": ["run_python", "textbook_search", "web_search", "workspace_file"], "missing": [], "degraded": ["textbook_search", "web_search"], "event": "tool registry built", "level": "info", "logger": "vichara.tools.registry", "timestamp": "2026-09-01T17:57:25.896232Z"}
+{"capability_profile": ["run_python", "textbook_search", "web_search", "workspace_file"], "event": "run starting", "task_id": "rag-hypothalamus-pituitary", "session_id": "sa511029ee7d4", "level": "info", "logger": "vichara.agent.runner", "timestamp": "2026-09-01T17:57:25.915573Z"}
+{"steps": 1, "answerable": true, "clarify": false, "revision": 0, "event": "planned", "task_id": "rag-hypothalamus-pituitary", "step": 0, "session_id": "sa511029ee7d4", "node": "plan", "level": "info", "logger": "vichara.agent.nodes.planning", "timestamp": "2026-09-01T17:57:27.114143Z"}
+{"rule": "identical_action", "detail": "textbook_search was already called with these exact arguments.", "soft": false, "event": "guardrail blocked action", "task_id": "rag-hypothalamus-pituitary", "session_id": "sa511029ee7d4", "level": "info", "logger": "vichara.agent.nodes.acting", "timestamp": "2026-09-01T17:57:30.347225Z"}
+{"terminal": "loop_detected", "steps": 3, "requests": 3, "event": "run finished", "task_id": "rag-hypothalamus-pituitary", "session_id": "sa511029ee7d4", "level": "info", "logger": "vichara.agent.nodes.finishing", "timestamp": "2026-09-01T17:57:30.348215Z"}
+{"session_id": "sa511029ee7d4", "terminal": "loop_detected", "steps": 6, "path": "D:\\AI_Portfolio\\Projects\\ReAct Agent\\trajectories\\runs.jsonl", "event": "trajectory written", "task_id": "rag-hypothalamus-pituitary", "level": "info", "logger": "vichara.trajectory.recorder", "timestamp": "2026-09-01T17:57:30.375459Z"}
+{"task": "rag-hypothalamus-pituitary", "seed": 0, "terminal": "loop_detected", "correct": false, "requests": 3, "event": "task scored", "level": "info", "logger": "vichara.eval.runner", "timestamp": "2026-09-01T17:57:30.431445Z"}
+{"available": ["run_python", "textbook_search", "web_search", "workspace_file"], "missing": [], "degraded": ["textbook_search", "web_search"], "event": "tool registry built", "level": "info", "logger": "vichara.tools.registry", "timestamp": "2026-09-01T17:57:30.437951Z"}
+{"capability_profile": ["run_python", "textbook_search", "web_search", "workspace_file"], "event": "run starting", "task_id": "rag-hypothalamus-pituitary", "session_id": "s224ebf3fcd0b", "level": "info", "logger": "vichara.agent.runner", "timestamp": "2026-09-01T17:57:30.463021Z"}
+{"steps": 1, "answerable": true, "clarify": false, "revision": 0, "event": "planned", "task_id": "rag-hypothalamus-pituitary", "step": 0, "session_id": "s224ebf3fcd0b", "node": "plan", "level": "info", "logger": "vichara.agent.nodes.planning", "timestamp": "2026-09-01T17:57:30.472664Z"}
+Key 'additionalProperties' is not supported in schema, ignoring
+{"decision": "revise", "event": "reflected", "task_id": "rag-hypothalamus-pituitary", "step": 3, "session_id": "s224ebf3fcd0b", "node": "reflect", "level": "info", "logger": "vichara.agent.nodes.planning", "timestamp": "2026-09-01T17:57:34.625118Z"}
+Key 'additionalProperties' is not supported in schema, ignoring
+{"steps": 1, "answerable": true, "clarify": false, "revision": 1, "event": "planned", "task_id": "rag-hypothalamus-pituitary", "step": 3, "session_id": "s224ebf3fcd0b", "node": "plan", "level": "info", "logger": "vichara.agent.nodes.planning", "timestamp": "2026-09-01T17:57:35.751189Z"}
+{"rule": "per_tool_limit", "detail": "textbook_search has already been called 4 times (limit 4).", "soft": true, "event": "guardrail blocked action", "task_id": "rag-hypothalamus-pituitary", "session_id": "s224ebf3fcd0b", "level": "info", "logger": "vichara.agent.nodes.acting", "timestamp": "2026-09-01T17:57:37.833648Z"}
+{"terminal": "answered", "steps": 5, "requests": 8, "event": "run finished", "task_id": "rag-hypothalamus-pituitary", "session_id": "s224ebf3fcd0b", "level": "info", "logger": "vichara.agent.nodes.finishing", "timestamp": "2026-09-01T17:57:42.027592Z"}
+{"session_id": "s224ebf3fcd0b", "terminal": "answered", "steps": 13, "path": "D:\\AI_Portfolio\\Projects\\ReAct Agent\\trajectories\\runs.jsonl", "event": "trajectory written", "task_id": "rag-hypothalamus-pituitary", "level": "info", "logger": "vichara.trajectory.recorder", "timestamp": "2026-09-01T17:57:42.048084Z"}
+{"task": "rag-hypothalamus-pituitary", "seed": 1, "terminal": "answered", "correct": true, "requests": 8, "event": "task scored", "level": "info", "logger": "vichara.eval.runner", "timestamp": "2026-09-01T17:57:42.062572Z"}
+{"available": ["run_python", "textbook_search", "web_search", "workspace_file"], "missing": [], "degraded": ["textbook_search", "web_search"], "event": "tool registry built", "level": "info", "logger": "vichara.tools.registry", "timestamp": "2026-09-01T17:57:42.072034Z"}
+{"capability_profile": ["run_python", "textbook_search", "web_search", "workspace_file"], "event": "run starting", "task_id": "rag-hypothalamus-pituitary", "session_id": "sd89d065c164f", "level": "info", "logger": "vichara.agent.runner", "timestamp": "2026-09-01T17:57:42.090780Z"}
+{"steps": 1, "answerable": true, "clarify": false, "revision": 0, "event": "planned", "task_id": "rag-hypothalamus-pituitary", "step": 0, "session_id": "sd89d065c164f", "node": "plan", "level": "info", "logger": "vichara.agent.nodes.planning", "timestamp": "2026-09-01T17:57:42.098021Z"}
+Key 'additionalProperties' is not supported in schema, ignoring
+{"decision": "revise", "event": "reflected", "task_id": "rag-hypothalamus-pituitary", "step": 3, "session_id": "sd89d065c164f", "node": "reflect", "level": "info", "logger": "vichara.agent.nodes.planning", "timestamp": "2026-09-01T17:57:46.304698Z"}
+Key 'additionalProperties' is not supported in schema, ignoring
+{"steps": 1, "answerable": true, "clarify": false, "revision": 1, "event": "planned", "task_id": "rag-hypothalamus-pituitary", "step": 3, "session_id": "sd89d065c164f", "node": "plan", "level": "info", "logger": "vichara.agent.nodes.planning", "timestamp": "2026-09-01T17:57:47.347810Z"}
+Retrying langchain_google_genai.chat_models._chat_with_retry.<locals>._chat_with_retry in 2 seconds as it raised ResourceExhausted: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 15, model: gemini-3.5-flash-lite
+Please retry in 13.063781207s. [links {
+  description: "Learn more about Gemini API quotas"
+  url: "https://ai.google.dev/gemini-api/docs/rate-limits"
+}
+, violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+  quota_id: "GenerateRequestsPerMinutePerProjectPerModel-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-3.5-flash-lite"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+  quota_value: 15
+}
+, retry_delay {
+  seconds: 13
+}
+].
+Retrying langchain_google_genai.chat_models._chat_with_retry.<locals>._chat_with_retry in 4 seconds as it raised ResourceExhausted: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 15, model: gemini-3.5-flash-lite
+Please retry in 10.822957191s. [links {
+  description: "Learn more about Gemini API quotas"
+  url: "https://ai.google.dev/gemini-api/docs/rate-limits"
+}
+, violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+  quota_id: "GenerateRequestsPerMinutePerProjectPerModel-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-3.5-flash-lite"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+  quota_value: 15
+}
+, retry_delay {
+  seconds: 10
+}
+].
+Retrying langchain_google_genai.chat_models._chat_with_retry.<locals>._chat_with_retry in 8 seconds as it raised ResourceExhausted: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 15, model: gemini-3.5-flash-lite
+Please retry in 6.626335889s. [links {
+  description: "Learn more about Gemini API quotas"
+  url: "https://ai.google.dev/gemini-api/docs/rate-limits"
+}
+, violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+  quota_id: "GenerateRequestsPerMinutePerProjectPerModel-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-3.5-flash-lite"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+  quota_value: 15
+}
+, retry_delay {
+  seconds: 6
+}
+].
+Retrying langchain_google_genai.chat_models._chat_with_retry.<locals>._chat_with_retry in 16 seconds as it raised ResourceExhausted: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 15, model: gemini-3.5-flash-lite
+Please retry in 58.411270844s. [links {
+  description: "Learn more about Gemini API quotas"
+  url: "https://ai.google.dev/gemini-api/docs/rate-limits"
+}
+, violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+  quota_id: "GenerateRequestsPerMinutePerProjectPerModel-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-3.5-flash-lite"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+  quota_value: 15
+}
+, retry_delay {
+  seconds: 58
+}
+].
+Retrying langchain_google_genai.chat_models._chat_with_retry.<locals>._chat_with_retry in 32 seconds as it raised ResourceExhausted: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 15, model: gemini-3.5-flash-lite
+Please retry in 42.199660725s. [links {
+  description: "Learn more about Gemini API quotas"
+  url: "https://ai.google.dev/gemini-api/docs/rate-limits"
+}
+, violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+  quota_id: "GenerateRequestsPerMinutePerProjectPerModel-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-3.5-flash-lite"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+  quota_value: 15
+}
+, retry_delay {
+  seconds: 42
+}
+].
+{"terminal": "answered", "steps": 5, "requests": 8, "event": "run finished", "task_id": "rag-hypothalamus-pituitary", "session_id": "sd89d065c164f", "level": "info", "logger": "vichara.agent.nodes.finishing", "timestamp": "2026-09-01T17:58:54.270698Z"}
+{"session_id": "sd89d065c164f", "terminal": "answered", "steps": 13, "path": "D:\\AI_Portfolio\\Projects\\ReAct Agent\\trajectories\\runs.jsonl", "event": "trajectory written", "task_id": "rag-hypothalamus-pituitary", "level": "info", "logger": "vichara.trajectory.recorder", "timestamp": "2026-09-01T17:58:54.304860Z"}
+{"task": "rag-hypothalamus-pituitary", "seed": 2, "terminal": "answered", "correct": true, "requests": 8, "event": "task scored", "level": "info", "logger": "vichara.eval.runner", "timestamp": "2026-09-01T17:58:54.317477Z"}
+{"available": ["run_python", "textbook_search", "web_search", "workspace_file"], "missing": [], "degraded": ["textbook_search", "web_search"], "event": "tool registry built", "level": "info", "logger": "vichara.tools.registry", "timestamp": "2026-09-01T17:58:54.323490Z"}
+{"capability_profile": ["run_python", "textbook_search", "web_search", "workspace_file"], "event": "run starting", "task_id": "rag-hypothalamus-pituitary", "session_id": "s63f752b3e694", "level": "info", "logger": "vichara.agent.runner", "timestamp": "2026-09-01T17:58:54.336052Z"}
+{"steps": 1, "answerable": true, "clarify": false, "revision": 0, "event": "planned", "task_id": "rag-hypothalamus-pituitary", "step": 0, "session_id": "s63f752b3e694", "node": "plan", "level": "info", "logger": "vichara.agent.nodes.planning", "timestamp": "2026-09-01T17:58:54.346349Z"}
+{"decision": "continue", "event": "reflected", "task_id": "rag-hypothalamus-pituitary", "step": 3, "session_id": "s63f752b3e694", "node": "reflect", "level": "info", "logger": "vichara.agent.nodes.planning", "timestamp": "2026-09-01T17:58:57.415101Z"}
+{"rule": "per_tool_limit", "detail": "textbook_search has already been called 4 times (limit 4).", "soft": true, "event": "guardrail blocked action", "task_id": "rag-hypothalamus-pituitary", "session_id": "s63f752b3e694", "level": "info", "logger": "vichara.agent.nodes.acting", "timestamp": "2026-09-01T17:58:59.490584Z"}
+{"terminal": "answered", "steps": 5, "requests": 6, "event": "run finished", "task_id": "rag-hypothalamus-pituitary", "session_id": "s63f752b3e694", "level": "info", "logger": "vichara.agent.nodes.finishing", "timestamp": "2026-09-01T17:59:01.130265Z"}
+{"session_id": "s63f752b3e694", "terminal": "answered", "steps": 12, "path": "D:\\AI_Portfolio\\Projects\\ReAct Agent\\trajectories\\runs.jsonl", "event": "trajectory written", "task_id": "rag-hypothalamus-pituitary", "level": "info", "logger": "vichara.trajectory.recorder", "timestamp": "2026-09-01T17:59:01.165219Z"}
+{"task": "rag-hypothalamus-pituitary", "seed": 3, "terminal": "answered", "correct": true, "requests": 6, "event": "task scored", "level": "info", "logger": "vichara.eval.runner", "timestamp": "2026-09-01T17:59:01.180909Z"}
+{"available": ["run_python", "textbook_search", "web_search", "workspace_file"], "missing": [], "degraded": ["textbook_search", "web_search"], "event": "tool registry built", "level": "info", "logger": "vichara.tools.registry", "timestamp": "2026-09-01T17:59:01.183178Z"}
+{"capability_profile": ["run_python", "textbook_search", "web_search", "workspace_file"], "event": "run starting", "task_id": "rag-hypothalamus-pituitary", "session_id": "sf4e1d590cd7f", "level": "info", "logger": "vichara.agent.runner", "timestamp": "2026-09-01T17:59:01.201037Z"}
+{"steps": 1, "answerable": true, "clarify": false, "revision": 0, "event": "planned", "task_id": "rag-hypothalamus-pituitary", "step": 0, "session_id": "sf4e1d590cd7f", "node": "plan", "level": "info", "logger": "vichara.agent.nodes.planning", "timestamp": "2026-09-01T17:59:01.201037Z"}
+Key 'additionalProperties' is not supported in schema, ignoring
+{"decision": "revise", "event": "reflected", "task_id": "rag-hypothalamus-pituitary", "step": 3, "session_id": "sf4e1d590cd7f", "node": "reflect", "level": "info", "logger": "vichara.agent.nodes.planning", "timestamp": "2026-09-01T17:59:05.150017Z"}
+Key 'additionalProperties' is not supported in schema, ignoring
+{"steps": 1, "answerable": true, "clarify": false, "revision": 1, "event": "planned", "task_id": "rag-hypothalamus-pituitary", "step": 3, "session_id": "sf4e1d590cd7f", "node": "plan", "level": "info", "logger": "vichara.agent.nodes.planning", "timestamp": "2026-09-01T17:59:06.370144Z"}
+{"rule": "per_tool_limit", "detail": "textbook_search has already been called 4 times (limit 4).", "soft": true, "event": "guardrail blocked action", "task_id": "rag-hypothalamus-pituitary", "session_id": "sf4e1d590cd7f", "level": "info", "logger": "vichara.agent.nodes.acting", "timestamp": "2026-09-01T17:59:08.365617Z"}
+Retrying langchain_google_genai.chat_models._chat_with_retry.<locals>._chat_with_retry in 2 seconds as it raised ResourceExhausted: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 15, model: gemini-3.5-flash-lite
+Please retry in 49.212916431s. [links {
+  description: "Learn more about Gemini API quotas"
+  url: "https://ai.google.dev/gemini-api/docs/rate-limits"
+}
+, violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+  quota_id: "GenerateRequestsPerMinutePerProjectPerModel-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-3.5-flash-lite"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+  quota_value: 15
+}
+, retry_delay {
+  seconds: 49
+}
+].
+Retrying langchain_google_genai.chat_models._chat_with_retry.<locals>._chat_with_retry in 4 seconds as it raised ResourceExhausted: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 15, model: gemini-3.5-flash-lite
+Please retry in 47.011675565s. [links {
+  description: "Learn more about Gemini API quotas"
+  url: "https://ai.google.dev/gemini-api/docs/rate-limits"
+}
+, violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+  quota_id: "GenerateRequestsPerMinutePerProjectPerModel-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-3.5-flash-lite"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+  quota_value: 15
+}
+, retry_delay {
+  seconds: 47
+}
+].
+Retrying langchain_google_genai.chat_models._chat_with_retry.<locals>._chat_with_retry in 8 seconds as it raised ResourceExhausted: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 15, model: gemini-3.5-flash-lite
+Please retry in 42.799813123s. [links {
+  description: "Learn more about Gemini API quotas"
+  url: "https://ai.google.dev/gemini-api/docs/rate-limits"
+}
+, violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+  quota_id: "GenerateRequestsPerMinutePerProjectPerModel-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-3.5-flash-lite"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+  quota_value: 15
+}
+, retry_delay {
+  seconds: 42
+}
+].
+Retrying langchain_google_genai.chat_models._chat_with_retry.<locals>._chat_with_retry in 16 seconds as it raised ResourceExhausted: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 15, model: gemini-3.5-flash-lite
+Please retry in 34.605559113s. [links {
+  description: "Learn more about Gemini API quotas"
+  url: "https://ai.google.dev/gemini-api/docs/rate-limits"
+}
+, violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+  quota_id: "GenerateRequestsPerMinutePerProjectPerModel-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-3.5-flash-lite"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+  quota_value: 15
+}
+, retry_delay {
+  seconds: 34
+}
+].
+{"terminal": "answered", "steps": 5, "requests": 8, "event": "run finished", "task_id": "rag-hypothalamus-pituitary", "session_id": "sf4e1d590cd7f", "level": "info", "logger": "vichara.agent.nodes.finishing", "timestamp": "2026-09-01T17:59:43.215567Z"}
+{"session_id": "sf4e1d590cd7f", "terminal": "answered", "steps": 13, "path": "D:\\AI_Portfolio\\Projects\\ReAct Agent\\trajectories\\runs.jsonl", "event": "trajectory written", "task_id": "rag-hypothalamus-pituitary", "level": "info", "logger": "vichara.trajectory.recorder", "timestamp": "2026-09-01T17:59:43.240812Z"}
+{"task": "rag-hypothalamus-pituitary", "seed": 4, "terminal": "answered", "correct": true, "requests": 8, "event": "task scored", "level": "info", "logger": "vichara.eval.runner", "timestamp": "2026-09-01T17:59:43.254325Z"}
+{"available": ["run_python", "textbook_search", "web_search", "workspace_file"], "missing": [], "degraded": ["textbook_search", "web_search"], "event": "tool registry built", "level": "info", "logger": "vichara.tools.registry", "timestamp": "2026-09-01T17:59:43.261180Z"}
+{"capability_profile": ["run_python", "textbook_search", "web_search", "workspace_file"], "event": "run starting", "task_id": "rag-membrane-potential", "session_id": "s8e5da72200cc", "level": "info", "logger": "vichara.agent.runner", "timestamp": "2026-09-01T17:59:43.272179Z"}
+{"steps": 1, "answerable": true, "clarify": false, "revision": 0, "event": "planned", "task_id": "rag-membrane-potential", "step": 0, "session_id": "s8e5da72200cc", "node": "plan", "level": "info", "logger": "vichara.agent.nodes.planning", "timestamp": "2026-09-01T17:59:43.277116Z"}
+Key 'additionalProperties' is not supported in schema, ignoring
+{"decision": "give_up", "event": "reflected", "task_id": "rag-membrane-potential", "step": 3, "session_id": "s8e5da72200cc", "node": "reflect", "level": "info", "logger": "vichara.agent.nodes.planning", "timestamp": "2026-09-01T17:59:47.226082Z"}
+{"terminal": "refused", "steps": 3, "requests": 4, "event": "run finished", "task_id": "rag-membrane-potential", "session_id": "s8e5da72200cc", "level": "info", "logger": "vichara.agent.nodes.finishing", "timestamp": "2026-09-01T17:59:47.227143Z"}
+{"session_id": "s8e5da72200cc", "terminal": "refused", "steps": 8, "path": "D:\\AI_Portfolio\\Projects\\ReAct Agent\\trajectories\\runs.jsonl", "event": "trajectory written", "task_id": "rag-membrane-potential", "level": "info", "logger": "vichara.trajectory.recorder", "timestamp": "2026-09-01T17:59:47.238638Z"}
+{"task": "rag-membrane-potential", "seed": 0, "terminal": "refused", "correct": false, "requests": 4, "event": "task scored", "level": "info", "logger": "vichara.eval.runner", "timestamp": "2026-09-01T17:59:47.250164Z"}
+{"available": ["run_python", "textbook_search", "web_search", "workspace_file"], "missing": [], "degraded": ["textbook_search", "web_search"], "event": "tool registry built", "level": "info", "logger": "vichara.tools.registry", "timestamp": "2026-09-01T17:59:47.250164Z"}
+{"capability_profile": ["run_python", "textbook_search", "web_search", "workspace_file"], "event": "run starting", "task_id": "rag-membrane-potential", "session_id": "se622401d20f8", "level": "info", "logger": "vichara.agent.runner", "timestamp": "2026-09-01T17:59:47.263487Z"}
+{"steps": 1, "answerable": true, "clarify": false, "revision": 0, "event": "planned", "task_id": "rag-membrane-potential", "step": 0, "session_id": "se622401d20f8", "node": "plan", "level": "info", "logger": "vichara.agent.nodes.planning", "timestamp": "2026-09-01T17:59:47.274666Z"}
+{"terminal": "answered", "steps": 3, "requests": 4, "event": "run finished", "task_id": "rag-membrane-potential", "session_id": "se622401d20f8", "level": "info", "logger": "vichara.agent.nodes.finishing", "timestamp": "2026-09-01T17:59:51.900810Z"}
+{"session_id": "se622401d20f8", "terminal": "answered", "steps": 7, "path": "D:\\AI_Portfolio\\Projects\\ReAct Agent\\trajectories\\runs.jsonl", "event": "trajectory written", "task_id": "rag-membrane-potential", "level": "info", "logger": "vichara.trajectory.recorder", "timestamp": "2026-09-01T17:59:51.912614Z"}
+{"task": "rag-membrane-potential", "seed": 1, "terminal": "answered", "correct": true, "requests": 4, "event": "task scored", "level": "info", "logger": "vichara.eval.runner", "timestamp": "2026-09-01T17:59:51.929575Z"}
+{"available": ["run_python", "textbook_search", "web_search", "workspace_file"], "missing": [], "degraded": ["textbook_search", "web_search"], "event": "tool registry built", "level": "info", "logger": "vichara.tools.registry", "timestamp": "2026-09-01T17:59:51.939895Z"}
+{"capability_profile": ["run_python", "textbook_search", "web_search", "workspace_file"], "event": "run starting", "task_id": "rag-membrane-potential", "session_id": "s9061c6d6135e", "level": "info", "logger": "vichara.agent.runner", "timestamp": "2026-09-01T17:59:51.951561Z"}
+{"steps": 1, "answerable": true, "clarify": false, "revision": 0, "event": "planned", "task_id": "rag-membrane-potential", "step": 0, "session_id": "s9061c6d6135e", "node": "plan", "level": "info", "logger": "vichara.agent.nodes.planning", "timestamp": "2026-09-01T17:59:51.956611Z"}
+Key 'additionalProperties' is not supported in schema, ignoring
+{"decision": "give_up", "event": "reflected", "task_id": "rag-membrane-potential", "step": 3, "session_id": "s9061c6d6135e", "node": "reflect", "level": "info", "logger": "vichara.agent.nodes.planning", "timestamp": "2026-09-01T17:59:55.726082Z"}
+{"terminal": "refused", "steps": 3, "requests": 4, "event": "run finished", "task_id": "rag-membrane-potential", "session_id": "s9061c6d6135e", "level": "info", "logger": "vichara.agent.nodes.finishing", "timestamp": "2026-09-01T17:59:55.726082Z"}
+{"session_id": "s9061c6d6135e", "terminal": "refused", "steps": 8, "path": "D:\\AI_Portfolio\\Projects\\ReAct Agent\\trajectories\\runs.jsonl", "event": "trajectory written", "task_id": "rag-membrane-potential", "level": "info", "logger": "vichara.trajectory.recorder", "timestamp": "2026-09-01T17:59:55.754049Z"}
+{"task": "rag-membrane-potential", "seed": 2, "terminal": "refused", "correct": false, "requests": 4, "event": "task scored", "level": "info", "logger": "vichara.eval.runner", "timestamp": "2026-09-01T17:59:55.766156Z"}
+{"available": ["run_python", "textbook_search", "web_search", "workspace_file"], "missing": [], "degraded": ["textbook_search", "web_search"], "event": "tool registry built", "level": "info", "logger": "vichara.tools.registry", "timestamp": "2026-09-01T17:59:55.772975Z"}
+{"capability_profile": ["run_python", "textbook_search", "web_search", "workspace_file"], "event": "run starting", "task_id": "rag-membrane-potential", "session_id": "sfa5f12a72be0", "level": "info", "logger": "vichara.agent.runner", "timestamp": "2026-09-01T17:59:55.789300Z"}
+{"steps": 1, "answerable": true, "clarify": false, "revision": 0, "event": "planned", "task_id": "rag-membrane-potential", "step": 0, "session_id": "sfa5f12a72be0", "node": "plan", "level": "info", "logger": "vichara.agent.nodes.planning", "timestamp": "2026-09-01T17:59:55.794321Z"}
+Retrying langchain_google_genai.chat_models._chat_with_retry.<locals>._chat_with_retry in 2 seconds as it raised ResourceExhausted: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 15, model: gemini-3.5-flash-lite
+Please retry in 1.215336619s. [links {
+  description: "Learn more about Gemini API quotas"
+  url: "https://ai.google.dev/gemini-api/docs/rate-limits"
+}
+, violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+  quota_id: "GenerateRequestsPerMinutePerProjectPerModel-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-3.5-flash-lite"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+  quota_value: 15
+}
+, retry_delay {
+  seconds: 1
+}
+].
+Retrying langchain_google_genai.chat_models._chat_with_retry.<locals>._chat_with_retry in 4 seconds as it raised ResourceExhausted: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 15, model: gemini-3.5-flash-lite
+Please retry in 59.013172612s. [links {
+  description: "Learn more about Gemini API quotas"
+  url: "https://ai.google.dev/gemini-api/docs/rate-limits"
+}
+, violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+  quota_id: "GenerateRequestsPerMinutePerProjectPerModel-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-3.5-flash-lite"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+  quota_value: 15
+}
+, retry_delay {
+  seconds: 59
+}
+].
+Retrying langchain_google_genai.chat_models._chat_with_retry.<locals>._chat_with_retry in 8 seconds as it raised ResourceExhausted: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 15, model: gemini-3.5-flash-lite
+Please retry in 54.815109188s. [links {
+  description: "Learn more about Gemini API quotas"
+  url: "https://ai.google.dev/gemini-api/docs/rate-limits"
+}
+, violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+  quota_id: "GenerateRequestsPerMinutePerProjectPerModel-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-3.5-flash-lite"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+  quota_value: 15
+}
+, retry_delay {
+  seconds: 54
+}
+].
+Retrying langchain_google_genai.chat_models._chat_with_retry.<locals>._chat_with_retry in 16 seconds as it raised ResourceExhausted: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 15, model: gemini-3.5-flash-lite
+Please retry in 46.63331833s. [links {
+  description: "Learn more about Gemini API quotas"
+  url: "https://ai.google.dev/gemini-api/docs/rate-limits"
+}
+, violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+  quota_id: "GenerateRequestsPerMinutePerProjectPerModel-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-3.5-flash-lite"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+  quota_value: 15
+}
+, retry_delay {
+  seconds: 46
+}
+].
+{"count": 2, "spans": ["Anatomy and Physiology, 12.4. The Action Potential*, p. 524", "Anatomy and Physiology, 12.5. Communication Between Neurons*, p. 531"], "event": "fabricated citations removed", "task_id": "rag-membrane-potential", "step": 3, "session_id": "sfa5f12a72be0", "node": "synthesize", "level": "warning", "logger": "vichara.guardrails.citations", "timestamp": "2026-09-01T18:00:34.273799Z"}
+{"terminal": "answered", "steps": 3, "requests": 4, "event": "run finished", "task_id": "rag-membrane-potential", "session_id": "sfa5f12a72be0", "level": "info", "logger": "vichara.agent.nodes.finishing", "timestamp": "2026-09-01T18:00:34.275428Z"}
+{"session_id": "sfa5f12a72be0", "terminal": "answered", "steps": 7, "path": "D:\\AI_Portfolio\\Projects\\ReAct Agent\\trajectories\\runs.jsonl", "event": "trajectory written", "task_id": "rag-membrane-potential", "level": "info", "logger": "vichara.trajectory.recorder", "timestamp": "2026-09-01T18:00:34.288430Z"}
+{"task": "rag-membrane-potential", "seed": 3, "terminal": "answered", "correct": true, "requests": 4, "event": "task scored", "level": "info", "logger": "vichara.eval.runner", "timestamp": "2026-09-01T18:00:34.298433Z"}
+{"available": ["run_python", "textbook_search", "web_search", "workspace_file"], "missing": [], "degraded": ["textbook_search", "web_search"], "event": "tool registry built", "level": "info", "logger": "vichara.tools.registry", "timestamp": "2026-09-01T18:00:34.305433Z"}
+{"capability_profile": ["run_python", "textbook_search", "web_search", "workspace_file"], "event": "run starting", "task_id": "rag-membrane-potential", "session_id": "s357bf5bc20e2", "level": "info", "logger": "vichara.agent.runner", "timestamp": "2026-09-01T18:00:34.315943Z"}
+{"steps": 1, "answerable": true, "clarify": false, "revision": 0, "event": "planned", "task_id": "rag-membrane-potential", "step": 0, "session_id": "s357bf5bc20e2", "node": "plan", "level": "info", "logger": "vichara.agent.nodes.planning", "timestamp": "2026-09-01T18:00:34.320446Z"}
+{"terminal": "answered", "steps": 3, "requests": 4, "event": "run finished", "task_id": "rag-membrane-potential", "session_id": "s357bf5bc20e2", "level": "info", "logger": "vichara.agent.nodes.finishing", "timestamp": "2026-09-01T18:00:50.129959Z"}
+{"session_id": "s357bf5bc20e2", "terminal": "answered", "steps": 7, "path": "D:\\AI_Portfolio\\Projects\\ReAct Agent\\trajectories\\runs.jsonl", "event": "trajectory written", "task_id": "rag-membrane-potential", "level": "info", "logger": "vichara.trajectory.recorder", "timestamp": "2026-09-01T18:00:50.154135Z"}
+{"task": "rag-membrane-potential", "seed": 4, "terminal": "answered", "correct": true, "requests": 4, "event": "task scored", "level": "info", "logger": "vichara.eval.runner", "timestamp": "2026-09-01T18:00:50.165357Z"}
+{"available": ["run_python", "textbook_search", "web_search", "workspace_file"], "missing": [], "degraded": ["textbook_search", "web_search"], "event": "tool registry built", "level": "info", "logger": "vichara.tools.registry", "timestamp": "2026-09-01T18:00:50.168754Z"}
+{"capability_profile": ["run_python", "textbook_search", "web_search", "workspace_file"], "event": "run starting", "task_id": "rag-innate-immunity", "session_id": "sf471b0de287f", "level": "info", "logger": "vichara.agent.runner", "timestamp": "2026-09-01T18:00:50.184460Z"}
+{"steps": 1, "answerable": true, "clarify": false, "revision": 0, "event": "planned", "task_id": "rag-innate-immunity", "step": 0, "session_id": "sf471b0de287f", "node": "plan", "level": "info", "logger": "vichara.agent.nodes.planning", "timestamp": "2026-09-01T18:00:50.184460Z"}
+Key 'additionalProperties' is not supported in schema, ignoring
+{"decision": "revise", "event": "reflected", "task_id": "rag-innate-immunity", "step": 3, "session_id": "sf471b0de287f", "node": "reflect", "level": "info", "logger": "vichara.agent.nodes.planning", "timestamp": "2026-09-01T18:01:04.234509Z"}
+Key 'additionalProperties' is not supported in schema, ignoring
+{"steps": 1, "answerable": true, "clarify": false, "revision": 1, "event": "planned", "task_id": "rag-innate-immunity", "step": 3, "session_id": "sf471b0de287f", "node": "plan", "level": "info", "logger": "vichara.agent.nodes.planning", "timestamp": "2026-09-01T18:01:09.724050Z"}
+{"terminal": "answered", "steps": 4, "requests": 7, "event": "run finished", "task_id": "rag-innate-immunity", "session_id": "sf471b0de287f", "level": "info", "logger": "vichara.agent.nodes.finishing", "timestamp": "2026-09-01T18:01:23.813612Z"}
+{"session_id": "sf471b0de287f", "terminal": "answered", "steps": 11, "path": "D:\\AI_Portfolio\\Projects\\ReAct Agent\\trajectories\\runs.jsonl", "event": "trajectory written", "task_id": "rag-innate-immunity", "level": "info", "logger": "vichara.trajectory.recorder", "timestamp": "2026-09-01T18:01:23.833932Z"}
+{"task": "rag-innate-immunity", "seed": 0, "terminal": "answered", "correct": true, "requests": 7, "event": "task scored", "level": "info", "logger": "vichara.eval.runner", "timestamp": "2026-09-01T18:01:23.848585Z"}
+{"available": ["run_python", "textbook_search", "web_search", "workspace_file"], "missing": [], "degraded": ["textbook_search", "web_search"], "event": "tool registry built", "level": "info", "logger": "vichara.tools.registry", "timestamp": "2026-09-01T18:01:23.857499Z"}
+{"capability_profile": ["run_python", "textbook_search", "web_search", "workspace_file"], "event": "run starting", "task_id": "rag-innate-immunity", "session_id": "s0a9360c1f296", "level": "info", "logger": "vichara.agent.runner", "timestamp": "2026-09-01T18:01:23.873668Z"}
+{"steps": 1, "answerable": true, "clarify": false, "revision": 0, "event": "planned", "task_id": "rag-innate-immunity", "step": 0, "session_id": "s0a9360c1f296", "node": "plan", "level": "info", "logger": "vichara.agent.nodes.planning", "timestamp": "2026-09-01T18:01:23.878324Z"}
+{"terminal": "answered", "steps": 3, "requests": 4, "event": "run finished", "task_id": "rag-innate-immunity", "session_id": "s0a9360c1f296", "level": "info", "logger": "vichara.agent.nodes.finishing", "timestamp": "2026-09-01T18:01:49.290053Z"}
+{"session_id": "s0a9360c1f296", "terminal": "answered", "steps": 7, "path": "D:\\AI_Portfolio\\Projects\\ReAct Agent\\trajectories\\runs.jsonl", "event": "trajectory written", "task_id": "rag-innate-immunity", "level": "info", "logger": "vichara.trajectory.recorder", "timestamp": "2026-09-01T18:01:49.311246Z"}
+{"task": "rag-innate-immunity", "seed": 1, "terminal": "answered", "correct": true, "requests": 4, "event": "task scored", "level": "info", "logger": "vichara.eval.runner", "timestamp": "2026-09-01T18:01:49.313375Z"}
+{"available": ["run_python", "textbook_search", "web_search", "workspace_file"], "missing": [], "degraded": ["textbook_search", "web_search"], "event": "tool registry built", "level": "info", "logger": "vichara.tools.registry", "timestamp": "2026-09-01T18:01:49.329898Z"}
+{"capability_profile": ["run_python", "textbook_search", "web_search", "workspace_file"], "event": "run starting", "task_id": "rag-innate-immunity", "session_id": "s865a49bb0d17", "level": "info", "logger": "vichara.agent.runner", "timestamp": "2026-09-01T18:01:49.345712Z"}
+{"steps": 1, "answerable": true, "clarify": false, "revision": 0, "event": "planned", "task_id": "rag-innate-immunity", "step": 0, "session_id": "s865a49bb0d17", "node": "plan", "level": "info", "logger": "vichara.agent.nodes.planning", "timestamp": "2026-09-01T18:01:49.350112Z"}
+Key 'additionalProperties' is not supported in schema, ignoring
+{"decision": "continue", "event": "reflected", "task_id": "rag-innate-immunity", "step": 3, "session_id": "s865a49bb0d17", "node": "reflect", "level": "info", "logger": "vichara.agent.nodes.planning", "timestamp": "2026-09-01T18:02:02.317074Z"}
+{"terminal": "answered", "steps": 4, "requests": 6, "event": "run finished", "task_id": "rag-innate-immunity", "session_id": "s865a49bb0d17", "level": "info", "logger": "vichara.agent.nodes.finishing", "timestamp": "2026-09-01T18:02:11.465150Z"}
+{"session_id": "s865a49bb0d17", "terminal": "answered", "steps": 10, "path": "D:\\AI_Portfolio\\Projects\\ReAct Agent\\trajectories\\runs.jsonl", "event": "trajectory written", "task_id": "rag-innate-immunity", "level": "info", "logger": "vichara.trajectory.recorder", "timestamp": "2026-09-01T18:02:11.486714Z"}
+{"task": "rag-innate-immunity", "seed": 2, "terminal": "answered", "correct": true, "requests": 6, "event": "task scored", "level": "info", "logger": "vichara.eval.runner", "timestamp": "2026-09-01T18:02:11.501854Z"}
+{"available": ["run_python", "textbook_search", "web_search", "workspace_file"], "missing": [], "degraded": ["textbook_search", "web_search"], "event": "tool registry built", "level": "info", "logger": "vichara.tools.registry", "timestamp": "2026-09-01T18:02:11.511021Z"}
+{"capability_profile": ["run_python", "textbook_search", "web_search", "workspace_file"], "event": "run starting", "task_id": "rag-innate-immunity", "session_id": "sd2265a59803e", "level": "info", "logger": "vichara.agent.runner", "timestamp": "2026-09-01T18:02:11.520874Z"}
+{"steps": 1, "answerable": true, "clarify": false, "revision": 0, "event": "planned", "task_id": "rag-innate-immunity", "step": 0, "session_id": "sd2265a59803e", "node": "plan", "level": "info", "logger": "vichara.agent.nodes.planning", "timestamp": "2026-09-01T18:02:11.531073Z"}
+{"decision": "revise", "event": "reflected", "task_id": "rag-innate-immunity", "step": 3, "session_id": "sd2265a59803e", "node": "reflect", "level": "info", "logger": "vichara.agent.nodes.planning", "timestamp": "2026-09-01T18:02:19.551238Z"}
+{"steps": 1, "answerable": true, "clarify": false, "revision": 1, "event": "planned", "task_id": "rag-innate-immunity", "step": 3, "session_id": "sd2265a59803e", "node": "plan", "level": "info", "logger": "vichara.agent.nodes.planning", "timestamp": "2026-09-01T18:02:19.553236Z"}
+{"terminal": "answered", "steps": 4, "requests": 5, "event": "run finished", "task_id": "rag-innate-immunity", "session_id": "sd2265a59803e", "level": "info", "logger": "vichara.agent.nodes.finishing", "timestamp": "2026-09-01T18:02:25.128002Z"}
+{"session_id": "sd2265a59803e", "terminal": "answered", "steps": 11, "path": "D:\\AI_Portfolio\\Projects\\ReAct Agent\\trajectories\\runs.jsonl", "event": "trajectory written", "task_id": "rag-innate-immunity", "level": "info", "logger": "vichara.trajectory.recorder", "timestamp": "2026-09-01T18:02:25.154770Z"}
+{"task": "rag-innate-immunity", "seed": 3, "terminal": "answered", "correct": true, "requests": 5, "event": "task scored", "level": "info", "logger": "vichara.eval.runner", "timestamp": "2026-09-01T18:02:25.168414Z"}
+{"available": ["run_python", "textbook_search", "web_search", "workspace_file"], "missing": [], "degraded": ["textbook_search", "web_search"], "event": "tool registry built", "level": "info", "logger": "vichara.tools.registry", "timestamp": "2026-09-01T18:02:25.173361Z"}
+{"capability_profile": ["run_python", "textbook_search", "web_search", "workspace_file"], "event": "run starting", "task_id": "rag-innate-immunity", "session_id": "sc5c2163d927a", "level": "info", "logger": "vichara.agent.runner", "timestamp": "2026-09-01T18:02:25.173361Z"}
+{"steps": 1, "answerable": true, "clarify": false, "revision": 0, "event": "planned", "task_id": "rag-innate-immunity", "step": 0, "session_id": "sc5c2163d927a", "node": "plan", "level": "info", "logger": "vichara.agent.nodes.planning", "timestamp": "2026-09-01T18:02:25.194451Z"}
+{"decision": "revise", "event": "reflected", "task_id": "rag-innate-immunity", "step": 3, "session_id": "sc5c2163d927a", "node": "reflect", "level": "info", "logger": "vichara.agent.nodes.planning", "timestamp": "2026-09-01T18:02:30.529720Z"}
+{"steps": 1, "answerable": true, "clarify": false, "revision": 1, "event": "planned", "task_id": "rag-innate-immunity", "step": 3, "session_id": "sc5c2163d927a", "node": "plan", "level": "info", "logger": "vichara.agent.nodes.planning", "timestamp": "2026-09-01T18:02:30.531426Z"}
+{"rule": "per_tool_limit", "detail": "textbook_search has already been called 4 times (limit 4).", "soft": true, "event": "guardrail blocked action", "task_id": "rag-innate-immunity", "session_id": "sc5c2163d927a", "level": "info", "logger": "vichara.agent.nodes.acting", "timestamp": "2026-09-01T18:02:33.852935Z"}
+{"terminal": "answered", "steps": 5, "requests": 6, "event": "run finished", "task_id": "rag-innate-immunity", "session_id": "sc5c2163d927a", "level": "info", "logger": "vichara.agent.nodes.finishing", "timestamp": "2026-09-01T18:02:36.631356Z"}
+{"session_id": "sc5c2163d927a", "terminal": "answered", "steps": 13, "path": "D:\\AI_Portfolio\\Projects\\ReAct Agent\\trajectories\\runs.jsonl", "event": "trajectory written", "task_id": "rag-innate-immunity", "level": "info", "logger": "vichara.trajectory.recorder", "timestamp": "2026-09-01T18:02:36.664008Z"}
+{"task": "rag-innate-immunity", "seed": 4, "terminal": "answered", "correct": true, "requests": 6, "event": "task scored", "level": "info", "logger": "vichara.eval.runner", "timestamp": "2026-09-01T18:02:36.679374Z"}
+{"available": ["run_python", "textbook_search", "web_search", "workspace_file"], "missing": [], "degraded": ["textbook_search", "web_search"], "event": "tool registry built", "level": "info", "logger": "vichara.tools.registry", "timestamp": "2026-09-01T18:02:36.685498Z"}
+{"capability_profile": ["run_python", "textbook_search", "web_search", "workspace_file"], "event": "run starting", "task_id": "rag-blood-vessels", "session_id": "s90baf4498a35", "level": "info", "logger": "vichara.agent.runner", "timestamp": "2026-09-01T18:02:36.689553Z"}
+{"steps": 1, "answerable": true, "clarify": false, "revision": 0, "event": "planned", "task_id": "rag-blood-vessels", "step": 0, "session_id": "s90baf4498a35", "node": "plan", "level": "info", "logger": "vichara.agent.nodes.planning", "timestamp": "2026-09-01T18:02:36.704950Z"}
+{"terminal": "answered", "steps": 3, "requests": 4, "event": "run finished", "task_id": "rag-blood-vessels", "session_id": "s90baf4498a35", "level": "info", "logger": "vichara.agent.nodes.finishing", "timestamp": "2026-09-01T18:02:42.663598Z"}
+{"session_id": "s90baf4498a35", "terminal": "answered", "steps": 7, "path": "D:\\AI_Portfolio\\Projects\\ReAct Agent\\trajectories\\runs.jsonl", "event": "trajectory written", "task_id": "rag-blood-vessels", "level": "info", "logger": "vichara.trajectory.recorder", "timestamp": "2026-09-01T18:02:42.689390Z"}
+{"task": "rag-blood-vessels", "seed": 0, "terminal": "answered", "correct": true, "requests": 4, "event": "task scored", "level": "info", "logger": "vichara.eval.runner", "timestamp": "2026-09-01T18:02:42.706889Z"}
+{"available": ["run_python", "textbook_search", "web_search", "workspace_file"], "missing": [], "degraded": ["textbook_search", "web_search"], "event": "tool registry built", "level": "info", "logger": "vichara.tools.registry", "timestamp": "2026-09-01T18:02:42.722947Z"}
+{"capability_profile": ["run_python", "textbook_search", "web_search", "workspace_file"], "event": "run starting", "task_id": "rag-blood-vessels", "session_id": "s13dd8a479a0b", "level": "info", "logger": "vichara.agent.runner", "timestamp": "2026-09-01T18:02:42.750179Z"}
+{"steps": 1, "answerable": true, "clarify": false, "revision": 0, "event": "planned", "task_id": "rag-blood-vessels", "step": 0, "session_id": "s13dd8a479a0b", "node": "plan", "level": "info", "logger": "vichara.agent.nodes.planning", "timestamp": "2026-09-01T18:02:42.756897Z"}
+Key 'additionalProperties' is not supported in schema, ignoring
+{"decision": "continue", "event": "reflected", "task_id": "rag-blood-vessels", "step": 3, "session_id": "s13dd8a479a0b", "node": "reflect", "level": "info", "logger": "vichara.agent.nodes.planning", "timestamp": "2026-09-01T18:02:46.837796Z"}
+{"rule": "per_tool_limit", "detail": "textbook_search has already been called 4 times (limit 4).", "soft": true, "event": "guardrail blocked action", "task_id": "rag-blood-vessels", "session_id": "s13dd8a479a0b", "level": "info", "logger": "vichara.agent.nodes.acting", "timestamp": "2026-09-01T18:02:48.853948Z"}
+{"terminal": "answered", "steps": 5, "requests": 7, "event": "run finished", "task_id": "rag-blood-vessels", "session_id": "s13dd8a479a0b", "level": "info", "logger": "vichara.agent.nodes.finishing", "timestamp": "2026-09-01T18:02:51.245920Z"}
+{"session_id": "s13dd8a479a0b", "terminal": "answered", "steps": 12, "path": "D:\\AI_Portfolio\\Projects\\ReAct Agent\\trajectories\\runs.jsonl", "event": "trajectory written", "task_id": "rag-blood-vessels", "level": "info", "logger": "vichara.trajectory.recorder", "timestamp": "2026-09-01T18:02:51.266927Z"}
+{"task": "rag-blood-vessels", "seed": 1, "terminal": "answered", "correct": true, "requests": 7, "event": "task scored", "level": "info", "logger": "vichara.eval.runner", "timestamp": "2026-09-01T18:02:51.279897Z"}
+{"available": ["run_python", "textbook_search", "web_search", "workspace_file"], "missing": [], "degraded": ["textbook_search", "web_search"], "event": "tool registry built", "level": "info", "logger": "vichara.tools.registry", "timestamp": "2026-09-01T18:02:51.286808Z"}
+{"capability_profile": ["run_python", "textbook_search", "web_search", "workspace_file"], "event": "run starting", "task_id": "rag-blood-vessels", "session_id": "s11621b9d7465", "level": "info", "logger": "vichara.agent.runner", "timestamp": "2026-09-01T18:02:51.297543Z"}
+{"steps": 1, "answerable": true, "clarify": false, "revision": 0, "event": "planned", "task_id": "rag-blood-vessels", "step": 0, "session_id": "s11621b9d7465", "node": "plan", "level": "info", "logger": "vichara.agent.nodes.planning", "timestamp": "2026-09-01T18:02:51.304506Z"}
+Retrying langchain_google_genai.chat_models._chat_with_retry.<locals>._chat_with_retry in 2 seconds as it raised ResourceExhausted: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 15, model: gemini-3.5-flash-lite
+Please retry in 9.011158804s. [links {
+  description: "Learn more about Gemini API quotas"
+  url: "https://ai.google.dev/gemini-api/docs/rate-limits"
+}
+, violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+  quota_id: "GenerateRequestsPerMinutePerProjectPerModel-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-3.5-flash-lite"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+  quota_value: 15
+}
+, retry_delay {
+  seconds: 9
+}
+].
+Retrying langchain_google_genai.chat_models._chat_with_retry.<locals>._chat_with_retry in 4 seconds as it raised ResourceExhausted: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 15, model: gemini-3.5-flash-lite
+Please retry in 6.856705456s. [links {
+  description: "Learn more about Gemini API quotas"
+  url: "https://ai.google.dev/gemini-api/docs/rate-limits"
+}
+, violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+  quota_id: "GenerateRequestsPerMinutePerProjectPerModel-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-3.5-flash-lite"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+  quota_value: 15
+}
+, retry_delay {
+  seconds: 6
+}
+].
+Retrying langchain_google_genai.chat_models._chat_with_retry.<locals>._chat_with_retry in 8 seconds as it raised ResourceExhausted: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 15, model: gemini-3.5-flash-lite
+Please retry in 2.692541551s. [links {
+  description: "Learn more about Gemini API quotas"
+  url: "https://ai.google.dev/gemini-api/docs/rate-limits"
+}
+, violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+  quota_id: "GenerateRequestsPerMinutePerProjectPerModel-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-3.5-flash-lite"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+  quota_value: 15
+}
+, retry_delay {
+  seconds: 2
+}
+].
+Retrying langchain_google_genai.chat_models._chat_with_retry.<locals>._chat_with_retry in 16 seconds as it raised ResourceExhausted: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 15, model: gemini-3.5-flash-lite
+Please retry in 54.536590775s. [links {
+  description: "Learn more about Gemini API quotas"
+  url: "https://ai.google.dev/gemini-api/docs/rate-limits"
+}
+, violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+  quota_id: "GenerateRequestsPerMinutePerProjectPerModel-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-3.5-flash-lite"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+  quota_value: 15
+}
+, retry_delay {
+  seconds: 54
+}
+].
+Retrying langchain_google_genai.chat_models._chat_with_retry.<locals>._chat_with_retry in 32 seconds as it raised ResourceExhausted: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 15, model: gemini-3.5-flash-lite
+Please retry in 38.379498086s. [links {
+  description: "Learn more about Gemini API quotas"
+  url: "https://ai.google.dev/gemini-api/docs/rate-limits"
+}
+, violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+  quota_id: "GenerateRequestsPerMinutePerProjectPerModel-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-3.5-flash-lite"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+  quota_value: 15
+}
+, retry_delay {
+  seconds: 38
+}
+].
+Key 'additionalProperties' is not supported in schema, ignoring
+{"decision": "continue", "event": "reflected", "task_id": "rag-blood-vessels", "step": 3, "session_id": "s11621b9d7465", "node": "reflect", "level": "info", "logger": "vichara.agent.nodes.planning", "timestamp": "2026-09-01T18:03:58.529318Z"}

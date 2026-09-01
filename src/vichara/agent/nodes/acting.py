@@ -145,9 +145,19 @@ def guard_node(state: AgentState, context: AgentContext) -> AgentState:
         has thrown away the work; the ceiling is there to stop it spending
         more, not to make it forget.
 
-        Hard stops still end the run: a detected loop or an exhausted wall
-        clock means the evidence is not going to improve and the run should
-        not keep paying to discover that.
+        A detected loop is soft for the same reason, which took a second
+        measurement to see. "The evidence is not going to improve" is the
+        correct read of a loop and the wrong argument for ending the run: it is
+        an argument for answering *now*, from what is already held. Three runs
+        halted on `loop_detected` while carrying 5, 5 and 10 citations -- one
+        of them the exact passage the question needed -- and reported "I
+        stopped because I was repeating the same action without making
+        progress".
+
+        Hard stops are for when there is genuinely nothing to salvage: an
+        exhausted wall clock leaves no time to synthesise, and a run with an
+        empty scratchpad has nothing to synthesise from. The ``soft`` path
+        falls back to a hard stop in that second case on its own.
         """
         events.append(GuardrailEvent(step=step, rule=rule, action="block", detail=detail))
         for event in events:
@@ -205,6 +215,7 @@ def guard_node(state: AgentState, context: AgentContext) -> AgentState:
             "identical_action",
             f"{pending.tool} was already called with these exact arguments.",
             TerminalReason.LOOP_DETECTED,
+            soft=True,
         )
 
     if _near_repeat(fingerprint, history, context):
@@ -212,6 +223,7 @@ def guard_node(state: AgentState, context: AgentContext) -> AgentState:
             "near_repeat",
             f"{pending.tool} has been called with near-identical arguments repeatedly.",
             TerminalReason.LOOP_DETECTED,
+            soft=True,
         )
 
     if pending.risk == RiskClass.DESTRUCTIVE.value:

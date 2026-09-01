@@ -124,13 +124,60 @@ held. The guard knew all three and enforced ceilings on them, so every limit
 arrived as an unexplained stop rather than a pressure the agent could plan
 against. `act` now renders that budget.
 
-**Neither fix has a measured effect yet, and this document will not claim one
-until it does.** Editing the act prompt moves `prompt_hashes`
-(`17c132fdfa89` → `23e3495c581c`), so the 116 runs above are correctly no
-longer comparable to anything recorded afterwards — that is the mechanism
-working as designed. The re-run is blocked on the free-tier daily quota. What
-is established is that the detector fires on the right 19 calls and loses no
-citations; what is *not* established is that the agent stops when told.
+### Measured: the eight tasks the fixes targeted
+
+n=5 on both sides, 40 runs each, on the eight tasks that had any sub-optimal
+run. This is deliberately **not** a headline number — the tasks were selected
+because they were the worst, so the subset is biased by construction. It
+answers one question: does the agent stop when told?
+
+| | before | after |
+| --- | --- | --- |
+| terminal correctness | 37/40 | **39/40** |
+| step efficiency (median) | 0.333 | **0.500** |
+| `loop_detected` | 3 | **0** |
+
+| task | split | before | after |
+| --- | --- | --- | --- |
+| `rag-blood-vessels` | dev | 5/5, se 0.20 | 5/5, se **0.50** |
+| `rag-hypothalamus-pituitary` | dev | **4/5**, se 0.20 | **5/5**, se 0.20 |
+| `rag-innate-immunity` | test | 5/5, se 0.20 | 5/5, se **0.50** |
+| `rag-membrane-potential` | dev | 5/5, se 0.33 | 5/5, se **0.50** |
+| `search-glp1-mechanism` | dev | **3/5**, se 0.33 | **4/5**, se **0.50** |
+| `rag-fungi` | test | 5/5, se 1.00 | 5/5, se 1.00 |
+| `search-alphafold` | dev | 5/5, se 1.00 | 5/5, se 1.00 |
+| `search-car-t-solid-tumours` | test | 5/5, se 1.00 | 5/5, se 1.00 |
+
+**Both previously-unstable tasks improved**, and no task regressed on either
+metric. `rag-innate-immunity` is in the **test** split and was never tuned
+against; it was the one test task with room to move, and it moved 0.20 → 0.50.
+
+**Step efficiency is improved, not solved.** A median of 0.50 is still two tool
+calls where one suffices. The agent stops sooner than it did; it does not yet
+stop at the right time.
+
+### Getting there cost two regressions, both caught before publication
+
+The first budget line traded correctness for efficiency: the agent searched
+less and `rag-membrane-potential` went 5/5 to 3/5, refusing twice on an
+answerable question — the prompt had offered a partial answer and a refusal as
+adjacent options without ranking them, so budget pressure could resolve into
+giving up.
+
+Fixing that exposed a second one underneath. Three runs then halted on
+`loop_detected` while holding 5, 5 and 10 citations — one of them *12.4. The
+Action Potential*, exactly the passage the question needed — and reported "I
+stopped because I was repeating the same action without making progress". That
+is the thirteen-citations bug in the branch the soft ceiling never covered, and
+`block()`'s own docstring contained the faulty reasoning in writing: *"a
+detected loop ... means the evidence is not going to improve and the run should
+not keep paying to discover that"*. The premise is right; the conclusion does
+not follow. Evidence that will not improve is an argument for answering now.
+Both loop rules are now soft, and degrade to a hard stop only when the
+scratchpad is empty and there is genuinely nothing to answer from.
+
+Neither regression reached a published number, which is the case for running
+the measurement before writing the claim rather than after.
 
 ### Consistency across seeds
 
@@ -197,6 +244,13 @@ against a bad rule.
   all five seeds; the rest have three or four, and three multi-tool tasks have
   one. Per-task rates on those are not claimable, and are labelled where they
   appear.
+- **`agent_version` covers prompts, not code.** It folds the prompt-file
+  hashes, so a prompt edited underneath a running sweep is caught. A
+  behavioural change in a node — making loop detection soft, for instance —
+  moves it not at all. Hashing the source would invalidate results on every
+  refactor, so discarding prior runs across a behavioural code change is a
+  judgement the operator has to make. Superseded runs are kept in
+  `eval_results/archive/` rather than deleted.
 - **The two fixes above are unmeasured.** The result-side loop detector and the
   act budget line were both derived from the runs in this document and have not
   been evaluated against a fresh sweep. `prompt_hashes` changed, so no future

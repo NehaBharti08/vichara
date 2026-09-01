@@ -19,6 +19,7 @@ from vichara.agent.nodes.acting import (
     _as_redundant,
     _budget_line,
     _first_matching_step,
+    guard_node,
     route_after_act,
     route_after_approve,
     route_after_guard,
@@ -438,3 +439,93 @@ class TestBudgetVisibility:
         )
 
         assert "Step 1 of 8." in rendered
+
+
+class TestRefusalIsNotABudgetMove:
+    """A first pass at the budget line traded correctness for efficiency.
+
+    Telling the agent what it had spent made it search less — and on
+    `rag-membrane-potential` (dev) it went 5/5 correct to 3/5, refusing twice
+    with "repeated textbook searches have failed... the corpus text is
+    truncated and insufficient". The prompt had offered a partial answer and a
+    refusal as adjacent options without ranking them, so budget pressure could
+    resolve into giving up on an answerable question.
+    """
+
+    def act(self) -> str:
+        """Newline-insensitive: the prompt is hard-wrapped, the guidance is not."""
+        return " ".join(load_prompt("act").split())
+
+    def test_the_prompt_ranks_answering_above_refusing(self) -> None:
+        act = self.act()
+
+        assert "never a reason to refuse" in act
+
+    def test_refusal_is_scoped_to_what_the_tools_cannot_do(self) -> None:
+        """Without a stated scope, "refuse" is available for merely thin evidence."""
+        act = self.act()
+
+        assert "false premise" in act
+        assert "nothing in the corpus" in act
+
+    def test_incomplete_evidence_is_directed_to_an_answer(self) -> None:
+        act = self.act()
+
+        assert "merely incomplete" in act
+        assert "name what is missing" in act
+
+
+class TestLoopDetectionSalvagesEvidence:
+    """A loop halted three runs that were holding the answer.
+
+    `rag-membrane-potential` stopped on `loop_detected` while carrying five
+    citations including *12.4. The Action Potential* — the passage the question
+    needed — and reported "I stopped because I was repeating the same action
+    without making progress". This is the thirteen-citations bug in the branch
+    the soft ceiling never covered: "the evidence is not going to improve" is
+    an argument for answering now, not for discarding the run.
+    """
+
+    def guard(self, state_: AgentState) -> AgentState:
+        context = SimpleNamespace(
+            config=PipelineConfig(),
+            provider=SimpleNamespace(ledger=Ledger()),
+            recorder=SimpleNamespace(add_guardrail_event=lambda _e: None),
+        )
+        return guard_node(state_, context)  # type: ignore[arg-type]
+
+    def repeated(self, *, evidence: bool) -> AgentState:
+        call = {"tool": "textbook_search", "args": {"query": "q"}}
+        pending = PendingAction(tool="textbook_search", args={"query": "q"}, risk="read")
+        return state(
+            step=3,
+            pending_action=pending,
+            action_history=[ActionFingerprint.of(1, call["tool"], call["args"])],
+            scratchpad=(
+                [ObservationRecord(step=1, tool="textbook_search", content="a passage")]
+                if evidence
+                else []
+            ),
+        )
+
+    def test_a_loop_with_evidence_answers_instead_of_halting(self) -> None:
+        result = self.guard(self.repeated(evidence=True))
+
+        assert result.get("force_synthesis") is True
+        assert result.get("terminal_reason") is None
+
+    def test_a_loop_with_nothing_gathered_still_halts(self) -> None:
+        """Soft is not "never stop" — an empty scratchpad has nothing to answer from."""
+        result = self.guard(self.repeated(evidence=False))
+
+        assert result.get("terminal_reason") is TerminalReason.LOOP_DETECTED
+
+    def test_the_repeated_action_is_refused_either_way(self) -> None:
+        """Salvaging the run must not also let the wasteful call through."""
+        assert self.guard(self.repeated(evidence=True)).get("pending_action") is None
+
+    def test_the_block_is_still_recorded_as_a_guardrail_event(self) -> None:
+        """Answering anyway must not hide that a loop happened."""
+        events = self.guard(self.repeated(evidence=True)).get("guardrail_events", [])
+
+        assert [e.rule for e in events if e.action == "block"] == ["identical_action"]

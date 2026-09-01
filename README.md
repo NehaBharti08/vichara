@@ -29,9 +29,19 @@ The agent loop is the least interesting part of this repository. A LangGraph ReA
 
 Being careful about what that fixes: duplicates fully explain **3** of the 36 sub-optimal runs, partially 10, and 23 have no duplicates at all. The majority retrieve genuinely different passages and never decide they are done — which `act` was asked to judge while being shown no step count, no tool spend, and no count of evidence held. It now sees all three.
 
-**Neither fix is measured yet.** Both were derived from the runs above, the act prompt edit moved `prompt_hashes`, and the re-run is blocked on the free-tier daily quota. The detector provably fires on the right 19 calls and loses no citations; whether the agent *stops when told* is not yet established, and this table will not claim it until a fresh sweep says so.
+**Measured, on the eight tasks the fixes targeted** — n=5 both sides, 40 runs each. Deliberately not a headline number: those tasks were picked because they were the worst, so the subset is biased by construction.
 
-That makes three defects found in this repo's own instruments — the injection scoring, the step-efficiency units, and now a guardrail that watched the wrong end of the tool call. All three were caught by checking one concrete case against the arithmetic, and the first two had been published as agent weaknesses.
+| | before | after |
+|---|---|---|
+| terminal correctness | 37/40 | **39/40** |
+| step efficiency (median) | 0.333 | **0.500** |
+| `loop_detected` | 3 | **0** |
+
+Both previously-unstable tasks improved and none regressed. `rag-innate-immunity` sits in the **test** split, was never tuned against, and moved 0.20 → 0.50. **Step efficiency is improved, not solved** — a median of 0.50 is still two calls where one would do; the agent stops sooner, not yet at the right time.
+
+Getting there cost two regressions, both caught before publication. The first budget line made the agent refuse answerable questions to save budget. Fixing that exposed a second underneath: three runs halted on `loop_detected` while holding 5, 5 and 10 citations — one of them the exact passage needed — reporting *"I stopped because I was repeating the same action without making progress"*. That is the thirteen-citations bug in the branch the soft ceiling never covered, and `block()`'s own docstring had the faulty reasoning written down. Loops are now soft.
+
+That makes four defects found in this repo's own instruments — the injection scoring, the step-efficiency units, a guardrail that watched the wrong end of the tool call, and a scorer that never read the `prompt_hashes` recorded specifically so two agent versions could not be averaged together. Each was caught by checking one concrete case against the arithmetic, and the first two had been published as agent weaknesses.
 
 ### Prompt injection
 
