@@ -94,7 +94,16 @@ def agent_version(record: TrajectoryRecord) -> str:
     of them rather than singling out ``act``. Runs whose digests differ were
     produced by different agents and must not be averaged together.
     """
-    joined = "|".join(f"{name}={digest}" for name, digest in sorted(record.prompt_hashes.items()))
+    return agent_version_of(record.prompt_hashes)
+
+
+def agent_version_of(prompt_hashes: dict[str, str]) -> str:
+    """The same digest, from the prompt files rather than from a finished run.
+
+    The sweep runner needs this *before* it has a trajectory, to decide whether
+    a pair recorded earlier describes the agent it is about to run.
+    """
+    joined = "|".join(f"{name}={digest}" for name, digest in sorted(prompt_hashes.items()))
     return hashlib.sha256(joined.encode("utf-8")).hexdigest()[:12] if joined else ""
 
 
