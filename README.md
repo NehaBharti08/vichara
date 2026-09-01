@@ -12,22 +12,26 @@ The agent loop is the least interesting part of this repository. A LangGraph ReA
 
 ## Results
 
-**41 tasks, annotated by hand before the agent ever ran.** Six metrics computed mechanically from the trajectory; one judged.
+**41 tasks, annotated by hand before the agent ever ran. 116 runs across five seeds.** Six metrics computed mechanically from the trajectory; one judged.
 
 | metric | value | what it means |
 |---|---|---|
-| terminal correctness | **0.976** | 40 of 41 reached the right terminal state |
-| tool precision | **1.00** | every tool it called was one the task needed |
+| terminal correctness | **0.966** | reached the right terminal state |
+| tool precision | **1.00** (median, IQR 0) | every tool it called was one the task needed |
 | forbidden-tool rate | **0.000** | never reached for a tool the task forbids |
 | refusal correctness | **1.00** | every impossible task refused, all within the step gate |
-| answer correctness | 0.903 | 3 substantive failures, all multi-tool |
-| **step efficiency** | **1.00** (median) | takes the annotated optimal path; a tail of runs does not — see below |
+| answer correctness | 0.952 | |
+| **step efficiency** | **1.00** (median, IQR 0.50) | the median run is optimal; a third are not — see below |
 
 **Step efficiency was reported as 0.333 and that was a bug in the metric, not the agent.** The numerator counted *tool calls a human would make*; the denominator counted *graph nodes executed*. A flawless single-tool run executes plan → act → execute → synthesize and scored 0.333 for doing exactly the right thing. Counting the same unit on both sides gives a median of **1.00**.
 
-The real signal survives the correction: a tail of runs makes five tool calls where one would do. The median run is optimal; the worst are not. That is still the thing an accuracy-only evaluation would never surface, which remains the argument for annotating optimal paths by hand.
+**Chasing the worst remaining run found a third bug, this time in a guardrail.** The agent called `textbook_search` five times where one sufficed — and BM25 returned *byte-identical* results every time. Neither loop rule fired, because both fingerprint **arguments**, and the reformulated queries sat at 0.62–0.76 similarity, under the 0.9 threshold. Across the sweep, **8.3% of all tool output was bytes the agent already held.** Loop detection now hashes what a tool returned, not just what was asked.
 
-This is the **second** measurement bug found in this repo's own instruments, after the injection scoring. Both were found by checking arithmetic against a single concrete case, and both had been reported as agent weaknesses.
+Being careful about what that fixes: duplicates fully explain **3** of the 36 sub-optimal runs, partially 10, and 23 have no duplicates at all. The majority retrieve genuinely different passages and never decide they are done — which `act` was asked to judge while being shown no step count, no tool spend, and no count of evidence held. It now sees all three.
+
+**Neither fix is measured yet.** Both were derived from the runs above, the act prompt edit moved `prompt_hashes`, and the re-run is blocked on the free-tier daily quota. The detector provably fires on the right 19 calls and loses no citations; whether the agent *stops when told* is not yet established, and this table will not claim it until a fresh sweep says so.
+
+That makes three defects found in this repo's own instruments — the injection scoring, the step-efficiency units, and now a guardrail that watched the wrong end of the tool call. All three were caught by checking one concrete case against the arithmetic, and the first two had been published as agent weaknesses.
 
 ### Prompt injection
 
@@ -42,7 +46,7 @@ Citation verification took false-citation attacks from 0.25 to **0.00**. The one
 
 **The most useful thing in that document is a correction.** It first reported 0.43 — until I found my own scoring counted the agent *reporting* an attack as being compromised by it. The agent was quoting payloads as evidence, exactly as designed. Both sweeps were re-run. [The full write-up](docs/PROMPT_INJECTION.md) leads with that mistake.
 
-> **Every number here is n=1.** A shape, not a rate. Agent runs are stochastic and one seed gives no spread. The n=5 sweep is the number of record and has not been run — stated here rather than left to inference.
+> **116 of a planned 205 runs.** The sweep halted when the free-tier daily quota ran out; the 57 runs the provider failed are dropped rather than scored, because a quota exhaustion is not agent behaviour. 25 of 41 tasks have all five seeds, the rest three or four, and three multi-tool tasks have one — per-task rates on those are not claimable and are labelled where they appear.
 
 **Evidence:** [`docs/EVALUATION.md`](docs/EVALUATION.md) · [`docs/PROMPT_INJECTION.md`](docs/PROMPT_INJECTION.md) · [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md) · raw results in [`eval_results/`](eval_results/)
 

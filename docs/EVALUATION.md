@@ -4,12 +4,13 @@
 argument that the agent works, and — more usefully — the record of where it
 does not.
 
-> **Status: n=1 sweep, dev and test pooled.** The headline table below is a
-> single run per task. It is enough to establish the shape of the result and
-> to find real defects, and it is **not** enough to claim a rate: with one
-> seed there is no spread to report, and agent runs are stochastic. The n=5
-> sweep is the number of record and is not yet run. Everything here is
-> labelled accordingly rather than presented as final.
+> **Status: n=5 across seeds 0-4, dev and test pooled, 116 scored runs.**
+> The sweep halted at 182 of 205 pairs when the free-tier daily quota ran out.
+> The 57 runs the provider failed are **dropped, not scored** — a quota
+> exhaustion is not agent behaviour, and counting those as failures would
+> report the agent losing capability it never lost. 25 of 41 tasks have all
+> five seeds; the rest have three or four. Spread is reported as median and
+> IQR throughout.
 
 ## Method
 
@@ -39,53 +40,132 @@ because nothing mechanical can answer it.
 Overfitting prompts to an eval set is the commonest silent failure in agent
 evaluation, and the only defence is not to look.
 
-## Results (n=1, all 41 tasks)
+## Results (n=5, 41 tasks, 116 scored runs)
 
 | metric | value | reading |
 | --- | --- | --- |
-| terminal_correct | **0.976** | 40 of 41 reached the right terminal state |
-| answer_correct | 0.903 | 3 substantive failures |
+| terminal_correct | **0.966** | mean over 116 runs |
+| answer_correct | 0.952 | n=105; the remainder have nothing to answer |
 | forbidden_tool_rate | **0.000** | never reached for a tool the task forbids |
-| tool_precision (median) | **1.00** | every tool it called was one the task needed |
+| tool_precision (median) | **1.00** | IQR 0.00 — every tool it called was one the task needed |
+| tool_recall (median) | **1.00** | IQR 0.00 |
 | refusal_correct | **1.00** | every impossible task refused within the step gate |
 | mean_steps_to_refusal | 0.0 | refusals happen in the planner, before any tool call |
-| false_refusal_rate | 0.024 | one answerable task refused |
-| cited_rate | 0.732 | the remainder are refusals and clarifications, which have nothing to cite |
-| **step_efficiency (median)** | **0.333** | **the agent uses roughly 3x the optimal number of steps** |
+| false_refusal_rate | 0.026 | 3 of 116 |
+| cited_rate | 0.888 | the remainder are refusals and clarifications |
+| step_efficiency (median) | **1.00** | IQR 0.50, min 0.20 — the median run is optimal, a third are not |
 | llm_requests (median) | 4.0 | IQR 4.0 |
 
-## What this says
+### Step efficiency was published as 0.333, and that was a bug in the metric
 
-**Tool selection is not the problem.** Precision 1.00 and a forbidden-tool
-rate of exactly zero mean the agent reaches for the right tool and never for a
-wrong one — including on the tasks designed to tempt it, like searching a
-textbook for arithmetic.
+The numerator counted *tool calls a human would make*; the denominator counted
+*graph nodes executed*. A flawless single-tool run executes plan → act →
+execute → synthesize and scored 0.333 for doing exactly the right thing. The
+median was an artifact of dividing two different units, and it had been
+published here as the headline weakness of the agent.
 
-**Refusal behaviour is the strongest result.** All six impossible tasks were
-refused, all within the step gate, and `mean_steps_to_refusal` of 0 means the
-refusal happens in the planner before any tool is called. That is the
-behaviour the metric was gated on step count to demand: an agent that
-eventually says "I don't know" after fifteen steps is broken even though the
-words are right.
+Counting tool calls on both sides gives a median of **1.00**. This is the
+second measurement bug found in this repo's own instruments, after the
+injection scoring; both were caught by checking the arithmetic against a
+single concrete case, and both had been reported as agent weaknesses.
 
-**Step efficiency is the real weakness, and it is the headline finding.** A
-median of 0.333 means the agent takes about three times the annotated optimal
-path. It reaches the right answer by a wasteful route. This is exactly the
-defect an accuracy-only evaluation would never surface — every one of those
-runs is scored *correct* on terminal state.
+**The real signal survives the correction.** 36 of 103 scored runs (35%) still
+come in under the annotated optimal path, and the worst takes five tool calls
+where one suffices. That is the thing an accuracy-only evaluation would never
+surface — every one of those runs is scored *correct* on terminal state.
 
-### The three failures are all multi-tool
+### Chasing the worst run found a third bug, this time in a guardrail
 
-| task | what happened |
+`rag-hypothalamus-pituitary` was both the worst step-efficiency task and one of
+only two inconsistent across seeds (4/5). The trajectory is unambiguous: the
+first `textbook_search` returns the passage that answers the question, and the
+agent then reformulates four more times while BM25 hands back **byte-identical
+results every time**. On seed 4 it finally repeats a query verbatim and trips
+`loop_detected`.
+
+Neither loop rule fired, because both fingerprint *arguments*. The successive
+queries scored 0.62–0.76 pairwise similarity, comfortably under the 0.9
+`near_repeat` threshold. Tightening that threshold is not the fix — it would
+flag legitimate reformulation, which is the behaviour that recovers a failed
+retrieval. `LoopConfig`'s own docstring already stated the right principle,
+*"the observation did not change, so neither will the result"*, and then only
+ever checked the arguments.
+
+Replaying all 197 stored baseline trajectories through a result-side digest:
+
+| | |
 | --- | --- |
-| `multi-smooth-muscle` | answered, but the computed percentage was wrong |
-| `multi-search-then-compute` | answered, but the unit conversion was wrong |
-| `multi-three-tool` | **refused** a task it should have answered — the only false refusal in the set |
+| redundant calls | **19**, across 7 tasks |
+| share of all tool output | **8.3%** |
+| duplicate content | 183 KB, each resent up to 3× under the verbatim window |
+| citations lost by suppressing it | **0** — the identical earlier call supplied them |
 
-Single-tool tasks are essentially solved; every failure is in orchestration,
-and the hardest orchestration task (the only three-tool one) is the single
-false refusal. That is a coherent, actionable finding rather than a scattering
-of unrelated errors.
+It warns rather than blocks. The agent is not missing evidence, it is holding
+the same evidence twice, so halting would repeat the mistake the soft ceiling
+made when it ended a run holding thirteen unused citations.
+
+### Two causes, and duplicates are the smaller one
+
+Attributing each of the 36 sub-optimal runs to a cause is the part worth being
+careful about, because it would be easy to claim the fix above solves step
+efficiency. It does not:
+
+| | runs |
+| --- | --- |
+| waste fully explained by byte-identical repeats | 3 |
+| partially explained | 10 |
+| **no duplicate results at all** | **23** |
+
+The majority retrieve genuinely *different* passages and simply never decide
+they are done. That is a sufficiency judgement, and `act` was asked to make it
+blind: the prompt said to answer "if you already have enough" while showing the
+model no step count, no tool spend, and no count of the evidence it already
+held. The guard knew all three and enforced ceilings on them, so every limit
+arrived as an unexplained stop rather than a pressure the agent could plan
+against. `act` now renders that budget.
+
+**Neither fix has a measured effect yet, and this document will not claim one
+until it does.** Editing the act prompt moves `prompt_hashes`
+(`17c132fdfa89` → `23e3495c581c`), so the 116 runs above are correctly no
+longer comparable to anything recorded afterwards — that is the mechanism
+working as designed. The re-run is blocked on the free-tier daily quota. What
+is established is that the detector fires on the right 19 calls and loses no
+citations; what is *not* established is that the agent stops when told.
+
+### Consistency across seeds
+
+39 of 41 tasks reach the same terminal state on every seed. The two that do not
+are the two the analysis above is about:
+
+| task | correct on |
+| --- | --- |
+| `rag-hypothalamus-pituitary` | 4 of 5 seeds |
+| `search-glp1-mechanism` | 3 of 5 seeds |
+
+Both are single-tool retrieval tasks that the agent over-searches. Instability
+and inefficiency have the same root here, which is the most actionable shape
+this result could have taken.
+
+### The substantive failures
+
+| task | seeds scored | what happened |
+| --- | --- | --- |
+| `multi-smooth-muscle` | 1 | answered, but the computed percentage was wrong |
+| `multi-search-then-compute` | 1 | answered, but the unit conversion was wrong |
+| `multi-three-tool` | 1 | **refused** a task it should have answered |
+| `rag-hypothalamus-pituitary` | 5 | 1 seed hit `loop_detected` after five identical retrievals |
+| `search-glp1-mechanism` | 5 | 2 seeds false-refused |
+
+**The three multi-tool rows have one seed each, and that is a limit on what
+can be said about them.** Those tasks are late in the sweep and the quota ran
+out before their remaining seeds ran, so a single failure cannot be
+distinguished from a task that fails every time. They are listed because the
+failure is real, not because the rate is known.
+
+The pattern that *does* have five seeds behind it: single-tool tasks are solved
+except where the agent over-searches, and both unstable tasks are over-search
+cases. Orchestration failures are arithmetic and unit handling inside an
+otherwise correct trajectory — the tool selection was right in every one.
 
 ## What was fixed because of this
 
@@ -113,8 +193,14 @@ against a bad rule.
 
 ## Honest limitations
 
-- **n=1.** No spread, so no rate can be claimed. Reported as a shape, not a
-  result.
+- **The sweep is incomplete.** 116 of a planned 205 runs. 25 of 41 tasks have
+  all five seeds; the rest have three or four, and three multi-tool tasks have
+  one. Per-task rates on those are not claimable, and are labelled where they
+  appear.
+- **The two fixes above are unmeasured.** The result-side loop detector and the
+  act budget line were both derived from the runs in this document and have not
+  been evaluated against a fresh sweep. `prompt_hashes` changed, so no future
+  run will be silently pooled with these.
 - **Retrieval is the fixture corpus, not the live service.** 440 real OpenStax
   passages ranked with BM25, where VidyaRAG ranks densely. Same citations,
   different ranking. See [ATTRIBUTION](../data/fixtures/ATTRIBUTION.md).
