@@ -1310,3 +1310,50 @@ Please retry in 57.750151833s. [links {
   seconds: 57
 }
 ].
+Retrying langchain_google_genai.chat_models._chat_with_retry.<locals>._chat_with_retry in 32 seconds as it raised ResourceExhausted: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
+* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 15, model: gemini-3.5-flash-lite
+Please retry in 41.596716444s. [links {
+  description: "Learn more about Gemini API quotas"
+  url: "https://ai.google.dev/gemini-api/docs/rate-limits"
+}
+, violations {
+  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
+  quota_id: "GenerateRequestsPerMinutePerProjectPerModel-FreeTier"
+  quota_dimensions {
+    key: "model"
+    value: "gemini-3.5-flash-lite"
+  }
+  quota_dimensions {
+    key: "location"
+    value: "global"
+  }
+  quota_value: 15
+}
+, retry_delay {
+  seconds: 41
+}
+].
+{"steps": 2, "answerable": true, "clarify": false, "revision": 0, "event": "planned", "step": 0, "node": "plan", "session_id": "s03c5b5c329f3", "task_id": "multi-membrane-delta", "level": "info", "logger": "vichara.agent.nodes.planning", "timestamp": "2026-09-01T18:17:52.234577Z"}
+{"backend": "pyodide", "event": "starting sandbox worker", "level": "info", "logger": "vichara.sandbox.pyodide.backend", "timestamp": "2026-09-01T18:17:54.438039Z"}
+{"pyodide": "0.28.3", "event": "sandbox worker ready", "level": "info", "logger": "vichara.sandbox.pyodide.backend", "timestamp": "2026-09-01T18:17:55.586469Z"}
+{"terminal": "answered", "steps": 3, "requests": 5, "event": "run finished", "session_id": "s03c5b5c329f3", "task_id": "multi-membrane-delta", "level": "info", "logger": "vichara.agent.nodes.finishing", "timestamp": "2026-09-01T18:17:58.876724Z"}
+{"session_id": "s03c5b5c329f3", "terminal": "answered", "steps": 7, "path": "D:\\AI_Portfolio\\Projects\\ReAct Agent\\trajectories\\runs.jsonl", "event": "trajectory written", "task_id": "multi-membrane-delta", "level": "info", "logger": "vichara.trajectory.recorder", "timestamp": "2026-09-01T18:17:58.889487Z"}
+{"task": "multi-membrane-delta", "seed": 4, "terminal": "answered", "correct": true, "requests": 5, "event": "task scored", "level": "info", "logger": "vichara.eval.runner", "timestamp": "2026-09-01T18:17:58.921053Z"}
+{"available": ["run_python", "textbook_search", "web_search", "workspace_file"], "missing": [], "degraded": ["textbook_search", "web_search"], "event": "tool registry built", "level": "info", "logger": "vichara.tools.registry", "timestamp": "2026-09-01T18:17:58.952896Z"}
+{"capability_profile": ["run_python", "textbook_search", "web_search", "workspace_file"], "event": "run starting", "session_id": "s03bc84aa7404", "task_id": "multi-tidal-volume", "level": "info", "logger": "vichara.agent.runner", "timestamp": "2026-09-01T18:17:58.999362Z"}
+{"steps": 2, "answerable": true, "clarify": false, "revision": 0, "event": "planned", "step": 0, "node": "plan", "session_id": "s03bc84aa7404", "task_id": "multi-tidal-volume", "level": "info", "logger": "vichara.agent.nodes.planning", "timestamp": "2026-09-01T18:17:58.999362Z"}
+{"backend": "pyodide", "event": "starting sandbox worker", "level": "info", "logger": "vichara.sandbox.pyodide.backend", "timestamp": "2026-09-01T18:18:00.950868Z"}
+{"pyodide": "0.28.3", "event": "sandbox worker ready", "level": "info", "logger": "vichara.sandbox.pyodide.backend", "timestamp": "2026-09-01T18:18:02.097826Z"}
+{"tool": "textbook_search", "code": "invalid_arguments", "attempts": 0, "detail": "1 validation error for TextbookSearchArgs\nbook\n  Extra inputs are not permitted [type=extra_forbidden, input_value='anatomy-and-physiology', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/extra_forbidden", "event": "tool failed", "step": 3, "node": "execute", "session_id": "s03bc84aa7404", "task_id": "multi-tidal-volume", "level": "warning", "logger": "vichara.tools.base", "timestamp": "2026-09-01T18:18:03.145913Z"}
+Key 'additionalProperties' is not supported in schema, ignoring
+{"decision": "revise", "event": "reflected", "step": 3, "node": "reflect", "session_id": "s03bc84aa7404", "task_id": "multi-tidal-volume", "level": "info", "logger": "vichara.agent.nodes.planning", "timestamp": "2026-09-01T18:18:04.177733Z"}
+Key 'additionalProperties' is not supported in schema, ignoring
+{"steps": 1, "answerable": true, "clarify": false, "revision": 1, "event": "planned", "step": 3, "node": "plan", "session_id": "s03bc84aa7404", "task_id": "multi-tidal-volume", "level": "info", "logger": "vichara.agent.nodes.planning", "timestamp": "2026-09-01T18:18:05.213101Z"}
+{"rule": "identical_action", "detail": "textbook_search was already called with these exact arguments.", "soft": false, "event": "guardrail blocked action", "session_id": "s03bc84aa7404", "task_id": "multi-tidal-volume", "level": "info", "logger": "vichara.agent.nodes.acting", "timestamp": "2026-09-01T18:18:07.191642Z"}
+{"terminal": "loop_detected", "steps": 5, "requests": 7, "event": "run finished", "session_id": "s03bc84aa7404", "task_id": "multi-tidal-volume", "level": "info", "logger": "vichara.agent.nodes.finishing", "timestamp": "2026-09-01T18:18:07.191642Z"}
+{"session_id": "s03bc84aa7404", "terminal": "loop_detected", "steps": 12, "path": "D:\\AI_Portfolio\\Projects\\ReAct Agent\\trajectories\\runs.jsonl", "event": "trajectory written", "task_id": "multi-tidal-volume", "level": "info", "logger": "vichara.trajectory.recorder", "timestamp": "2026-09-01T18:18:07.218230Z"}
+{"task": "multi-tidal-volume", "seed": 0, "terminal": "loop_detected", "correct": false, "requests": 7, "event": "task scored", "level": "info", "logger": "vichara.eval.runner", "timestamp": "2026-09-01T18:18:07.255928Z"}
+{"available": ["run_python", "textbook_search", "web_search", "workspace_file"], "missing": [], "degraded": ["textbook_search", "web_search"], "event": "tool registry built", "level": "info", "logger": "vichara.tools.registry", "timestamp": "2026-09-01T18:18:07.279836Z"}
+{"capability_profile": ["run_python", "textbook_search", "web_search", "workspace_file"], "event": "run starting", "session_id": "s2e5f855d34eb", "task_id": "multi-tidal-volume", "level": "info", "logger": "vichara.agent.runner", "timestamp": "2026-09-01T18:18:07.297800Z"}
+Key 'additionalProperties' is not supported in schema, ignoring
+{"steps": 2, "answerable": true, "clarify": false, "revision": 0, "event": "planned", "step": 0, "node": "plan", "session_id": "s2e5f855d34eb", "task_id": "multi-tidal-volume", "level": "info", "logger": "vichara.agent.nodes.planning", "timestamp": "2026-09-01T18:18:08.554882Z"}

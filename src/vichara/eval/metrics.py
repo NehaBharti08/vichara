@@ -93,6 +93,17 @@ def agent_version(record: TrajectoryRecord) -> str:
     Every prompt matters, not just the one that was edited, so this folds all
     of them rather than singling out ``act``. Runs whose digests differ were
     produced by different agents and must not be averaged together.
+
+    **It covers prompts, not code.** Making loop detection soft changed the
+    agent's behaviour materially and moved this digest not at all, because the
+    prompt files were untouched. So this catches the change it was built for --
+    a prompt edited underneath a running sweep -- and silently misses a
+    behavioural change in a node. Hashing the source would be the obvious
+    extension and a bad one: every refactor and comment would invalidate
+    results that are still perfectly comparable, and the discipline would be
+    abandoned within a week. Until something better exists, discarding prior
+    results across a behavioural code change is a decision the operator has to
+    make, and this docstring is where that obligation is written down.
     """
     return agent_version_of(record.prompt_hashes)
 

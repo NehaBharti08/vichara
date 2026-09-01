@@ -197,6 +197,13 @@ against a bad rule.
   all five seeds; the rest have three or four, and three multi-tool tasks have
   one. Per-task rates on those are not claimable, and are labelled where they
   appear.
+- **`agent_version` covers prompts, not code.** It folds the prompt-file
+  hashes, so a prompt edited underneath a running sweep is caught. A
+  behavioural change in a node — making loop detection soft, for instance —
+  moves it not at all. Hashing the source would invalidate results on every
+  refactor, so discarding prior runs across a behavioural code change is a
+  judgement the operator has to make. Superseded runs are kept in
+  `eval_results/archive/` rather than deleted.
 - **The two fixes above are unmeasured.** The result-side loop detector and the
   act budget line were both derived from the runs in this document and have not
   been evaluated against a fresh sweep. `prompt_hashes` changed, so no future
