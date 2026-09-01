@@ -321,9 +321,7 @@ class TestAgentVersion:
     """
 
     def rec(self, **hashes: str) -> TrajectoryRecord:
-        return TrajectoryRecord(
-            session_id="s1", task="t", steps=[], prompt_hashes=dict(hashes)
-        )
+        return TrajectoryRecord(session_id="s1", task="t", steps=[], prompt_hashes=dict(hashes))
 
     def test_the_same_prompt_set_is_the_same_version(self) -> None:
         a = agent_version(self.rec(act="aaa", plan="bbb"))
