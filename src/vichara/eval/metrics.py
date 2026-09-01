@@ -15,6 +15,7 @@ rather than merely reported.
 
 from __future__ import annotations
 
+import hashlib
 import statistics
 from collections.abc import Sequence
 
@@ -46,6 +47,17 @@ class TaskResult(BaseModel):
     seed: int | None = None
     capability_profile: list[str] = []
 
+    agent_version: str = ""
+    """Digest of the prompt set that produced this run.
+
+    ``prompt_hashes`` was recorded on every trajectory from Phase 3 so that a
+    run made before a prompt edit could be told apart from one made after --
+    and then nothing downstream ever read it, so the scorer would happily pool
+    two prompt versions into one mean and report it as a single agent. The
+    mechanism existed; it was simply not connected to the thing it was built to
+    protect. Carrying it onto the result row is what makes the split visible in
+    ``eval_results/`` rather than only in the trajectory log."""
+
     terminal_reason: str | None = None
     terminal_correct: bool = False
 
@@ -75,6 +87,17 @@ class TaskResult(BaseModel):
     guardrails_fired: list[str] = []
 
 
+def agent_version(record: TrajectoryRecord) -> str:
+    """A single short digest standing for the whole prompt set.
+
+    Every prompt matters, not just the one that was edited, so this folds all
+    of them rather than singling out ``act``. Runs whose digests differ were
+    produced by different agents and must not be averaged together.
+    """
+    joined = "|".join(f"{name}={digest}" for name, digest in sorted(record.prompt_hashes.items()))
+    return hashlib.sha256(joined.encode("utf-8")).hexdigest()[:12] if joined else ""
+
+
 def score(record: TrajectoryRecord, task: GoldTask) -> TaskResult:
     """Compute every mechanical metric for one trajectory."""
     called = record.tool_calls_made
@@ -87,6 +110,7 @@ def score(record: TrajectoryRecord, task: GoldTask) -> TaskResult:
         split=task.split.value,
         seed=record.seed,
         capability_profile=record.capability_profile,
+        agent_version=agent_version(record),
         terminal_reason=record.terminal_reason.value if record.terminal_reason else None,
         terminal_correct=_terminal_correct(record, task),
         used_forbidden_tool=bool(distinct & set(task.forbidden_tools)),
