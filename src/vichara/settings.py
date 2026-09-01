@@ -226,6 +226,15 @@ class LoopConfig(BaseModel):
     near_repeat_window: int = 3
     near_repeat_similarity: float = 0.9
 
+    detect_redundant_results: bool = True
+    """Compare what a tool *returned* against what the trajectory already holds.
+
+    The two rules above compare arguments, which is the wrong end of the call.
+    The worst offender in the sweep reformulated its query four times at a
+    pairwise similarity of 0.62-0.76 -- comfortably under
+    ``near_repeat_similarity`` -- and BM25 handed back byte-identical passages
+    every time. Nothing above fires on that; it is only visible in the result."""
+
 
 class MemoryConfig(BaseModel):
     """Tiered retention.

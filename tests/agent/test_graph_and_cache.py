@@ -7,19 +7,28 @@ because they are the ones that must run on every commit.
 
 from __future__ import annotations
 
+import difflib
+import itertools
 from pathlib import Path
 from typing import Any
 
 import pytest
 
-from vichara.agent.nodes.acting import route_after_act, route_after_approve, route_after_guard
+from vichara.agent.nodes.acting import (
+    _as_redundant,
+    _first_matching_step,
+    route_after_act,
+    route_after_approve,
+    route_after_guard,
+)
 from vichara.agent.nodes.planning import route_after_plan, route_after_reflect
 from vichara.agent.state import ActionFingerprint, AgentState, PendingAction, initial_state
 from vichara.llm.accounting import CallRecord, Ledger, estimate_usd, usage_from_response
 from vichara.llm.cache import ResponseCache, cache_key
 from vichara.llm.provider import text_of
 from vichara.llm.ratelimit import TokenBucket, is_rate_limit
-from vichara.trajectory.schema import Plan, TerminalReason
+from vichara.settings import LoopConfig
+from vichara.trajectory.schema import ObservationRecord, Plan, TerminalReason
 
 
 def state(**fields: Any) -> AgentState:
@@ -305,3 +314,78 @@ class TestRateLimiting:
 
     def test_bucket_allows_the_first_call_immediately(self) -> None:
         assert TokenBucket(rate_per_minute=60).acquire(timeout_s=1) is True
+
+
+class TestRedundantResults:
+    """Loop detection watched what the agent asked, not what it got back.
+
+    `rag-hypothalamus-pituitary` called `textbook_search` five times where one
+    sufficed, reformulating enough to clear the near-repeat threshold every
+    time while BM25 returned byte-identical passages. It was simultaneously the
+    worst step-efficiency task and one of only two unstable across seeds.
+    """
+
+    def obs(self, step: int, content: str, **kw: Any) -> ObservationRecord:
+        return ObservationRecord(step=step, tool="textbook_search", content=content, **kw)
+
+    def test_the_arguments_that_evaded_near_repeat(self) -> None:
+        """The real queries, scoring well under the 0.9 similarity threshold.
+
+        This is why a result-side check had to exist: tightening the argument
+        threshold to catch these would flag legitimate reformulation too.
+        """
+        queries = [
+            "hypothalamus control anterior pituitary gland",
+            "hypothalamus control anterior pituitary hypophyseal portal system",
+            "hypothalamus hypophyseal portal system anterior pituitary",
+        ]
+        ratios = [
+            difflib.SequenceMatcher(None, a, b).ratio() for a, b in itertools.pairwise(queries)
+        ]
+
+        assert max(ratios) < LoopConfig().near_repeat_similarity
+
+    def test_identical_bytes_are_traced_to_the_first_step(self) -> None:
+        prior = [self.obs(2, "the pituitary is suspended from the infundibulum")]
+
+        assert _first_matching_step(prior[0].content, prior) == 2
+
+    def test_different_bytes_are_progress(self) -> None:
+        prior = [self.obs(2, "the pituitary is suspended from the infundibulum")]
+
+        assert (
+            _first_matching_step("hypophyseal portal veins carry releasing hormones", prior) is None
+        )
+
+    def test_a_repeat_of_a_repeat_points_at_the_original(self) -> None:
+        """Otherwise the third call cites the second, which cites the first."""
+        text = "the pituitary is suspended from the infundibulum"
+        prior = [self.obs(2, text), _as_redundant(self.obs(4, text), earlier=2)]
+
+        assert _first_matching_step(text, prior) == 2
+
+    def test_a_repeated_failure_is_not_a_redundant_result(self) -> None:
+        """Two timeouts in a row are a broken tool, and retrying is reasonable."""
+        prior = [self.obs(2, "upstream timed out", ok=False, error_code="timeout")]
+
+        assert _first_matching_step(prior[0].content, prior) is None
+
+    def test_the_duplicate_body_is_dropped_but_the_citations_survive(self) -> None:
+        """The evidence is already in state from the first identical call.
+
+        Re-sending ~11KB the model has read is what made the loop expensive;
+        dropping the citations *here* would be the soft-ceiling bug again.
+        """
+        original = self.obs(2, "x" * 11000, citations=[{"citation": "A&P 17.3, p.744"}])
+        marked = _as_redundant(original, earlier=2)
+
+        assert marked.redundant
+        assert len(marked.content) < 400
+        assert "step 2" in marked.content
+
+    def test_the_agent_is_told_what_to_do_instead(self) -> None:
+        """A warning that does not name an alternative just burns the step."""
+        marked = _as_redundant(self.obs(4, "some passage"), earlier=2)
+
+        assert "Answer from what" in marked.content
+        assert "different tool" in marked.content
