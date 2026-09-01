@@ -10,24 +10,27 @@ from __future__ import annotations
 import difflib
 import itertools
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
 
 from vichara.agent.nodes.acting import (
     _as_redundant,
+    _budget_line,
     _first_matching_step,
     route_after_act,
     route_after_approve,
     route_after_guard,
 )
+from vichara.agent.nodes.context import load_prompt
 from vichara.agent.nodes.planning import route_after_plan, route_after_reflect
 from vichara.agent.state import ActionFingerprint, AgentState, PendingAction, initial_state
 from vichara.llm.accounting import CallRecord, Ledger, estimate_usd, usage_from_response
 from vichara.llm.cache import ResponseCache, cache_key
 from vichara.llm.provider import text_of
 from vichara.llm.ratelimit import TokenBucket, is_rate_limit
-from vichara.settings import LoopConfig
+from vichara.settings import LoopConfig, PipelineConfig
 from vichara.trajectory.schema import ObservationRecord, Plan, TerminalReason
 
 
@@ -389,3 +392,49 @@ class TestRedundantResults:
 
         assert "Answer from what" in marked.content
         assert "different tool" in marked.content
+
+
+class TestBudgetVisibility:
+    """The guard enforced ceilings the agent could not see.
+
+    Duplicate results explain only 3 of the 36 sub-optimal runs outright. The
+    rest retrieve different passages and never decide they are done, which is a
+    judgement `act` was asked to make without being shown step count, tool
+    spend, or how much evidence it already held.
+    """
+
+    def line(self, s: AgentState, step: int = 1) -> str:
+        """`_budget_line` reads only the config, so a full context is noise."""
+        return _budget_line(s, step, SimpleNamespace(config=PipelineConfig()))  # type: ignore[arg-type]
+
+    def test_the_step_and_its_ceiling_are_both_named(self) -> None:
+        """A step number without its ceiling is not a budget."""
+        assert "Step 3 of 8" in self.line(state(), step=3)
+
+    def test_a_fresh_run_says_so_plainly(self) -> None:
+        assert "No tools called yet" in self.line(state())
+
+    def test_spend_is_shown_against_the_limit_that_will_stop_it(self) -> None:
+        s = state(tool_calls={"textbook_search": 3})
+
+        assert "textbook_search 3/4" in self.line(s)
+
+    def test_untouched_tools_are_not_listed(self) -> None:
+        """Listing every tool at 0/4 buries the one that is nearly spent."""
+        s = state(tool_calls={"textbook_search": 3, "web_search": 0})
+
+        assert "web_search" not in self.line(s)
+
+    def test_accumulated_evidence_is_counted(self) -> None:
+        """The concrete form of "you may already be done"."""
+        s = state(citations=[{"citation": f"src {i}"} for i in range(12)])
+
+        assert "holding 12 source(s)" in self.line(s)
+
+    def test_the_prompt_renders_with_the_budget_slot_filled(self) -> None:
+        """A missing key raises at format() time, mid-run, on every task."""
+        rendered = load_prompt("act").format(
+            task="t", plan="p", summary="s", reflect_note="", budget="Step 1 of 8."
+        )
+
+        assert "Step 1 of 8." in rendered
