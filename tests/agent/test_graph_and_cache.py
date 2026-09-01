@@ -438,3 +438,37 @@ class TestBudgetVisibility:
         )
 
         assert "Step 1 of 8." in rendered
+
+
+class TestRefusalIsNotABudgetMove:
+    """A first pass at the budget line traded correctness for efficiency.
+
+    Telling the agent what it had spent made it search less — and on
+    `rag-membrane-potential` (dev) it went 5/5 correct to 3/5, refusing twice
+    with "repeated textbook searches have failed... the corpus text is
+    truncated and insufficient". The prompt had offered a partial answer and a
+    refusal as adjacent options without ranking them, so budget pressure could
+    resolve into giving up on an answerable question.
+    """
+
+    def act(self) -> str:
+        """Newline-insensitive: the prompt is hard-wrapped, the guidance is not."""
+        return " ".join(load_prompt("act").split())
+
+    def test_the_prompt_ranks_answering_above_refusing(self) -> None:
+        act = self.act()
+
+        assert "never a reason to refuse" in act
+
+    def test_refusal_is_scoped_to_what_the_tools_cannot_do(self) -> None:
+        """Without a stated scope, "refuse" is available for merely thin evidence."""
+        act = self.act()
+
+        assert "false premise" in act
+        assert "nothing in the corpus" in act
+
+    def test_incomplete_evidence_is_directed_to_an_answer(self) -> None:
+        act = self.act()
+
+        assert "merely incomplete" in act
+        assert "name what is missing" in act
