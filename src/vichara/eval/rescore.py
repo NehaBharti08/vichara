@@ -14,7 +14,7 @@ incomparable, which is the sort of thing that quietly invalidates a table.
 from __future__ import annotations
 
 import json
-from collections import defaultdict
+from collections import Counter, defaultdict
 from pathlib import Path
 
 from vichara.eval.metrics import TaskResult, score
@@ -73,6 +73,24 @@ def rescore(
     by_profile: dict[str, list[TaskResult]] = defaultdict(list)
     for (task_id, prof, _seed), record in latest.items():
         by_profile[prof].append(score(record, tasks[task_id]))
+
+    # prompt_hashes was recorded on every trajectory from Phase 3 precisely so
+    # a run made before a prompt edit could be told apart from one made after,
+    # and then nothing read it. Pooling two prompt versions into one mean and
+    # calling it "the agent" is the exact failure that field exists to prevent,
+    # and it would happen silently: the row count still looks right.
+    #
+    # This warns rather than refuses. A mixed set is a real state to be in
+    # halfway through a re-run, and the caller needs the numbers to decide
+    # which pairs still need redoing -- but it must not be able to miss it.
+    for prof, rows in by_profile.items():
+        versions = Counter(row.agent_version for row in rows)
+        if len(versions) > 1:
+            log.warning(
+                "results pool more than one prompt version; these are not one agent",
+                profile=prof,
+                versions=dict(versions),
+            )
 
     results_dir.mkdir(parents=True, exist_ok=True)
     counts: dict[str, int] = {}

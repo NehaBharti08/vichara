@@ -10,7 +10,13 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from vichara.eval.metrics import MAX_REFUSAL_STEPS, Distribution, rate, score
+from vichara.eval.metrics import (
+    MAX_REFUSAL_STEPS,
+    Distribution,
+    agent_version,
+    rate,
+    score,
+)
 from vichara.eval.tasks.loader import load_tasks
 from vichara.eval.tasks.schema import Category, GoldTask, Split, Terminal
 from vichara.trajectory.schema import (
@@ -303,3 +309,50 @@ class TestDistribution:
 
     def test_rate_of_nothing_is_none(self) -> None:
         assert rate([None, None]) is None
+
+
+class TestAgentVersion:
+    """`prompt_hashes` was recorded from Phase 3 and then never read.
+
+    A live sweep was found still running against exhausted quota while the act
+    prompt was edited underneath it. `AgentSession` reloads prompts from disk
+    per task, so it would have written one results file describing two
+    different agents, with a row count that still looked right.
+    """
+
+    def rec(self, **hashes: str) -> TrajectoryRecord:
+        return TrajectoryRecord(session_id="s1", task="t", steps=[], prompt_hashes=dict(hashes))
+
+    def test_the_same_prompt_set_is_the_same_version(self) -> None:
+        a = agent_version(self.rec(act="aaa", plan="bbb"))
+
+        assert a == agent_version(self.rec(act="aaa", plan="bbb"))
+
+    def test_editing_any_prompt_changes_the_version(self) -> None:
+        """Not just `act`. Every prompt shapes the run being scored."""
+        before = agent_version(self.rec(act="aaa", plan="bbb"))
+
+        assert agent_version(self.rec(act="aaa", plan="CHANGED")) != before
+
+    def test_key_order_is_not_a_version_change(self) -> None:
+        """Otherwise dict ordering alone would split one sweep into two."""
+        assert agent_version(self.rec(act="a", plan="b")) == agent_version(
+            self.rec(plan="b", act="a")
+        )
+
+    def test_a_swap_between_prompts_is_still_a_change(self) -> None:
+        """Folding the digests must not lose which prompt held which."""
+        assert agent_version(self.rec(act="a", plan="b")) != agent_version(
+            self.rec(act="b", plan="a")
+        )
+
+    def test_a_trajectory_with_no_hashes_claims_no_version(self) -> None:
+        """Empty is honest; a digest of nothing would look like a real version."""
+        assert agent_version(self.rec()) == ""
+
+    def test_the_version_reaches_the_result_row(self) -> None:
+        """The whole point: the split has to be visible in eval_results/."""
+        record = trajectory(tools=["textbook_search"], answer="answer")
+        record.prompt_hashes = {"act": "aaa"}
+
+        assert score(record, gold()).agent_version == agent_version(record)

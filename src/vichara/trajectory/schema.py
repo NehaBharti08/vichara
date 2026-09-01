@@ -114,6 +114,16 @@ class ObservationRecord(BaseModel):
     externalised_ref: str | None = None
     """Set when the body was spilled to the workspace and replaced by a pointer."""
 
+    redundant: bool = False
+    """This call returned bytes the trajectory already held.
+
+    Loop detection fingerprints *arguments*, so an agent that reformulates a
+    query enough to clear the similarity threshold and still hits the same
+    passages evaded it entirely. Measured over the baseline sweep, 8.3% of all
+    tool output was a byte-identical repeat. The flag is on the observation
+    rather than derived at scoring time because the agent is told about it
+    while it is still running -- the whole point is that it can act on it."""
+
 
 class GuardrailEvent(BaseModel):
     model_config = ConfigDict(extra="forbid")

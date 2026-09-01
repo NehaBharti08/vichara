@@ -13,6 +13,7 @@ human-in-the-loop is decoration.
 from __future__ import annotations
 
 import difflib
+import hashlib
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.types import interrupt
@@ -61,6 +62,7 @@ def act_node(state: AgentState, context: AgentContext) -> AgentState:
         plan=plan_text,
         summary=evidence or "(nothing yet)",
         reflect_note=f"\n{reflect_note}\n" if reflect_note else "",
+        budget=_budget_line(state, step, context),
     )
 
     client = context.provider.get("agent")
@@ -363,6 +365,20 @@ def execute_node(state: AgentState, context: AgentContext) -> AgentState:
             citations=[c.model_dump() for c in result.citations],
         )
 
+    events: list[GuardrailEvent] = []
+    if context.config.loops.detect_redundant_results and observation.ok:
+        earlier = _first_matching_step(observation.content, state.get("scratchpad", []))
+        if earlier is not None:
+            observation = _as_redundant(observation, earlier)
+            event = GuardrailEvent(
+                step=state.get("step", 0),
+                rule="redundant_result",
+                action="warn",
+                detail=f"{observation.tool} returned the result of step {earlier}",
+            )
+            events.append(event)
+            context.recorder.add_guardrail_event(event)
+
     context.recorder.add_observation(observation)
     context.recorder.end_step()
 
@@ -373,7 +389,81 @@ def execute_node(state: AgentState, context: AgentContext) -> AgentState:
         scratchpad=[observation],
         citations=list(observation.citations),
         tool_calls=counts,
+        guardrail_events=events,
         pending_action=None,
+    )
+
+
+def _budget_line(state: AgentState, step: int, context: AgentContext) -> str:
+    """Tell the agent what it has spent and what it is holding.
+
+    The guard enforced ceilings the agent could not see, so every limit arrived
+    as an unexplained stop rather than a pressure it could plan against. The
+    prompt asked it to answer "if you already have enough" while showing it no
+    measure of enough: not the step it was on, not how many times it had
+    already called a tool, not how much evidence it had accumulated.
+
+    Measured over the baseline sweep, 35% of scored runs came in under the
+    annotated optimal path, and byte-identical repeats explain only three of
+    those thirty-six outright. The rest retrieve genuinely different passages
+    and simply do not stop -- a sufficiency judgement the agent was never given
+    the inputs to make.
+
+    Citations are the useful number rather than a proxy for it: they are what
+    the answer must be built from, so "12 sources from 3 searches" is the fact
+    that makes "you may already be done" concrete.
+    """
+    limits = context.config.tool_limits
+    used = state.get("tool_calls", {})
+    parts = [f"Step {step} of {context.config.budget.max_steps}."]
+
+    spent = [f"{tool} {n}/{limits.limit_for(tool)}" for tool, n in sorted(used.items()) if n]
+    parts.append(f"Tool calls used: {', '.join(spent)}." if spent else "No tools called yet.")
+
+    citations = len(state.get("citations", []))
+    if citations:
+        parts.append(f"You are holding {citations} source(s) already retrieved.")
+    return " ".join(parts)
+
+
+def _first_matching_step(content: str, scratchpad: list[ObservationRecord]) -> int | None:
+    """The step of the earliest observation holding exactly these bytes."""
+    digest = hashlib.sha256(content.encode("utf-8")).hexdigest()
+    for prior in scratchpad:
+        if (
+            not prior.redundant
+            and prior.ok
+            and hashlib.sha256(prior.content.encode("utf-8")).hexdigest() == digest
+        ):
+            return prior.step
+    return None
+
+
+def _as_redundant(observation: ObservationRecord, earlier: int) -> ObservationRecord:
+    """Replace a duplicate body with a pointer to the step that already has it.
+
+    This warns rather than blocks, and the distinction is deliberate: the agent
+    is not missing evidence, it is holding the evidence twice. Halting here
+    would repeat the mistake the soft ceiling made when it ended a run holding
+    thirteen unused citations -- the ceiling exists to stop the agent spending
+    more, not to make it forget.
+
+    Dropping the body is safe because ``citations`` was extracted before this
+    ran and the identical earlier observation already contributed the same
+    entries. It also removes the reason the loop was expensive: resending ~11KB
+    the model has already read, on every subsequent step, at quadratic cost.
+    """
+    return observation.model_copy(
+        update={
+            "redundant": True,
+            "content": (
+                f"This returned exactly what {observation.tool} already returned at "
+                f"step {earlier}; the text is there and is not repeated here. "
+                "Rewording the query is not finding new evidence. Answer from what "
+                "you have, or use a different tool to establish something new."
+            ),
+            "citations": [],
+        }
     )
 
 

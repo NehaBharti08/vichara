@@ -7,19 +7,31 @@ because they are the ones that must run on every commit.
 
 from __future__ import annotations
 
+import difflib
+import itertools
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
 
-from vichara.agent.nodes.acting import route_after_act, route_after_approve, route_after_guard
+from vichara.agent.nodes.acting import (
+    _as_redundant,
+    _budget_line,
+    _first_matching_step,
+    route_after_act,
+    route_after_approve,
+    route_after_guard,
+)
+from vichara.agent.nodes.context import load_prompt
 from vichara.agent.nodes.planning import route_after_plan, route_after_reflect
 from vichara.agent.state import ActionFingerprint, AgentState, PendingAction, initial_state
 from vichara.llm.accounting import CallRecord, Ledger, estimate_usd, usage_from_response
 from vichara.llm.cache import ResponseCache, cache_key
 from vichara.llm.provider import text_of
 from vichara.llm.ratelimit import TokenBucket, is_rate_limit
-from vichara.trajectory.schema import Plan, TerminalReason
+from vichara.settings import LoopConfig, PipelineConfig
+from vichara.trajectory.schema import ObservationRecord, Plan, TerminalReason
 
 
 def state(**fields: Any) -> AgentState:
@@ -305,3 +317,124 @@ class TestRateLimiting:
 
     def test_bucket_allows_the_first_call_immediately(self) -> None:
         assert TokenBucket(rate_per_minute=60).acquire(timeout_s=1) is True
+
+
+class TestRedundantResults:
+    """Loop detection watched what the agent asked, not what it got back.
+
+    `rag-hypothalamus-pituitary` called `textbook_search` five times where one
+    sufficed, reformulating enough to clear the near-repeat threshold every
+    time while BM25 returned byte-identical passages. It was simultaneously the
+    worst step-efficiency task and one of only two unstable across seeds.
+    """
+
+    def obs(self, step: int, content: str, **kw: Any) -> ObservationRecord:
+        return ObservationRecord(step=step, tool="textbook_search", content=content, **kw)
+
+    def test_the_arguments_that_evaded_near_repeat(self) -> None:
+        """The real queries, scoring well under the 0.9 similarity threshold.
+
+        This is why a result-side check had to exist: tightening the argument
+        threshold to catch these would flag legitimate reformulation too.
+        """
+        queries = [
+            "hypothalamus control anterior pituitary gland",
+            "hypothalamus control anterior pituitary hypophyseal portal system",
+            "hypothalamus hypophyseal portal system anterior pituitary",
+        ]
+        ratios = [
+            difflib.SequenceMatcher(None, a, b).ratio() for a, b in itertools.pairwise(queries)
+        ]
+
+        assert max(ratios) < LoopConfig().near_repeat_similarity
+
+    def test_identical_bytes_are_traced_to_the_first_step(self) -> None:
+        prior = [self.obs(2, "the pituitary is suspended from the infundibulum")]
+
+        assert _first_matching_step(prior[0].content, prior) == 2
+
+    def test_different_bytes_are_progress(self) -> None:
+        prior = [self.obs(2, "the pituitary is suspended from the infundibulum")]
+
+        assert (
+            _first_matching_step("hypophyseal portal veins carry releasing hormones", prior) is None
+        )
+
+    def test_a_repeat_of_a_repeat_points_at_the_original(self) -> None:
+        """Otherwise the third call cites the second, which cites the first."""
+        text = "the pituitary is suspended from the infundibulum"
+        prior = [self.obs(2, text), _as_redundant(self.obs(4, text), earlier=2)]
+
+        assert _first_matching_step(text, prior) == 2
+
+    def test_a_repeated_failure_is_not_a_redundant_result(self) -> None:
+        """Two timeouts in a row are a broken tool, and retrying is reasonable."""
+        prior = [self.obs(2, "upstream timed out", ok=False, error_code="timeout")]
+
+        assert _first_matching_step(prior[0].content, prior) is None
+
+    def test_the_duplicate_body_is_dropped_but_the_citations_survive(self) -> None:
+        """The evidence is already in state from the first identical call.
+
+        Re-sending ~11KB the model has read is what made the loop expensive;
+        dropping the citations *here* would be the soft-ceiling bug again.
+        """
+        original = self.obs(2, "x" * 11000, citations=[{"citation": "A&P 17.3, p.744"}])
+        marked = _as_redundant(original, earlier=2)
+
+        assert marked.redundant
+        assert len(marked.content) < 400
+        assert "step 2" in marked.content
+
+    def test_the_agent_is_told_what_to_do_instead(self) -> None:
+        """A warning that does not name an alternative just burns the step."""
+        marked = _as_redundant(self.obs(4, "some passage"), earlier=2)
+
+        assert "Answer from what" in marked.content
+        assert "different tool" in marked.content
+
+
+class TestBudgetVisibility:
+    """The guard enforced ceilings the agent could not see.
+
+    Duplicate results explain only 3 of the 36 sub-optimal runs outright. The
+    rest retrieve different passages and never decide they are done, which is a
+    judgement `act` was asked to make without being shown step count, tool
+    spend, or how much evidence it already held.
+    """
+
+    def line(self, s: AgentState, step: int = 1) -> str:
+        """`_budget_line` reads only the config, so a full context is noise."""
+        return _budget_line(s, step, SimpleNamespace(config=PipelineConfig()))  # type: ignore[arg-type]
+
+    def test_the_step_and_its_ceiling_are_both_named(self) -> None:
+        """A step number without its ceiling is not a budget."""
+        assert "Step 3 of 8" in self.line(state(), step=3)
+
+    def test_a_fresh_run_says_so_plainly(self) -> None:
+        assert "No tools called yet" in self.line(state())
+
+    def test_spend_is_shown_against_the_limit_that_will_stop_it(self) -> None:
+        s = state(tool_calls={"textbook_search": 3})
+
+        assert "textbook_search 3/4" in self.line(s)
+
+    def test_untouched_tools_are_not_listed(self) -> None:
+        """Listing every tool at 0/4 buries the one that is nearly spent."""
+        s = state(tool_calls={"textbook_search": 3, "web_search": 0})
+
+        assert "web_search" not in self.line(s)
+
+    def test_accumulated_evidence_is_counted(self) -> None:
+        """The concrete form of "you may already be done"."""
+        s = state(citations=[{"citation": f"src {i}"} for i in range(12)])
+
+        assert "holding 12 source(s)" in self.line(s)
+
+    def test_the_prompt_renders_with_the_budget_slot_filled(self) -> None:
+        """A missing key raises at format() time, mid-run, on every task."""
+        rendered = load_prompt("act").format(
+            task="t", plan="p", summary="s", reflect_note="", budget="Step 1 of 8."
+        )
+
+        assert "Step 1 of 8." in rendered

@@ -142,6 +142,27 @@ evidence is what the system prompt asks for. Corrected to 0.11. The lesson
 outlives the number: a mechanical success criterion is only as good as its
 ability to separate compliance from description.
 
+**Loop detection watched the wrong end of the tool call.** Both rules
+fingerprint *arguments* — an exact repeat, and a near-repeat above 0.9
+similarity. The worst task in the sweep called `textbook_search` five times
+where one sufficed, reformulating to 0.62–0.76 similarity each time while BM25
+returned byte-identical passages. Nothing fired. Tightening the similarity
+threshold would have been the wrong fix: it would flag the legitimate
+reformulation that recovers a failed retrieval. `LoopConfig`'s own docstring
+already had the principle right — *"the observation did not change, so neither
+will the result"* — and then checked only the arguments. The result is now
+hashed too. Across the baseline sweep that is 8.3% of all tool output.
+
+**The guard enforced ceilings the agent could not see.** `act` was asked to
+answer "if you already have enough" while being shown no step count, no tool
+spend, and no count of the evidence it held — so every limit arrived as an
+unexplained stop rather than a pressure it could plan against. This is the
+larger half of the step-efficiency tail: byte-identical repeats fully explain
+only 3 of 36 sub-optimal runs, while 23 have no duplicates at all and simply
+never conclude. Both fixes are unmeasured; the act prompt edit moved
+`prompt_hashes`, so the sweep that would measure them cannot be pooled with
+the one that motivated them.
+
 **The warm sandbox worker leaks state between executions.** One submission
 cleared `sys.meta_path` and weakened the sandbox for every later call in that
 worker. No access was granted, but hardening is now re-applied before every
