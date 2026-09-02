@@ -11,8 +11,10 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from vichara.eval.metrics import agent_version_of
+from vichara.eval.metrics import TaskResult, agent_version_of
+from vichara.eval.report import for_agent
 from vichara.eval.runner import ResultStore
+from vichara.eval.tasks.schema import Category
 
 VERSION = agent_version_of({"act": "aaa", "plan": "bbb"})
 OTHER = agent_version_of({"act": "CHANGED", "plan": "bbb"})
@@ -86,3 +88,37 @@ class TestCompleted:
         store = write(tmp_path / "r.jsonl", {"task_id": "t-1", "agent_version": VERSION})
 
         assert store.completed(VERSION) == {("t-1", None)}
+
+
+class TestReportScoping:
+    """The first sweep after a prompt edit printed "230 runs / 41 tasks".
+
+    116 of those came from the previous agent and 114 from the current one,
+    averaged into a single table — the exact pooling `agent_version` exists to
+    prevent, in the one place a person actually reads the number. `rescore`
+    warned about it; the sweep's own end-of-run summary did not.
+    """
+
+    def result(self, task_id: str, version: str) -> TaskResult:
+        return TaskResult(
+            task_id=task_id, category=Category.SINGLE_TOOL, split="dev", agent_version=version
+        )
+
+    def test_only_this_agents_runs_are_reported(self) -> None:
+        rows = [self.result("t-1", VERSION), self.result("t-2", OTHER)]
+
+        assert [r.task_id for r in for_agent(rows, VERSION)] == ["t-1"]
+
+    def test_a_resume_still_reports_the_whole_sweep(self) -> None:
+        """The filter must not reintroduce the bug it replaced.
+
+        Reporting only what one invocation produced makes a resumed sweep look
+        worse than it was; every run by this agent still counts.
+        """
+        rows = [self.result(f"t-{i}", VERSION) for i in range(5)]
+
+        assert len(for_agent(rows, VERSION)) == 5
+
+    def test_unversioned_rows_are_excluded(self) -> None:
+        """They came from an unknown prompt set and cannot be attributed."""
+        assert for_agent([self.result("t-1", "")], VERSION) == []
