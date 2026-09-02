@@ -60,6 +60,90 @@ _STEP_ICON = {
 }
 
 
+_STAGES: list[tuple[StepKind, str]] = [
+    (StepKind.PLAN, "Plan"),
+    (StepKind.ACT, "Choose tool"),
+    (StepKind.EXECUTE, "Call tool"),
+    (StepKind.OBSERVE, "Read result"),
+    (StepKind.SYNTHESIZE, "Answer"),
+]
+"""The stages worth showing, not every node the graph has.
+
+GUARD and APPROVE fire on nearly every loop and would dominate the strip while
+saying nothing a viewer can act on; REFLECT and COMPRESS are conditional and
+appear as a step in the trajectory below when they do run. This is a progress
+indicator, so it shows the spine of the run rather than a faithful node dump.
+"""
+
+_STATUS_CSS = """
+#stage-strip{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:2px 0 6px}
+#stage-strip .stage{display:flex;align-items:center;gap:6px;padding:5px 11px;
+  border-radius:999px;font-size:.82rem;border:1px solid var(--border-color-primary);
+  background:var(--background-fill-secondary);color:var(--body-text-color-subdued);
+  transition:background .2s,color .2s,border-color .2s}
+#stage-strip .stage.done{color:var(--body-text-color);
+  border-color:var(--color-accent-soft)}
+#stage-strip .stage.active{color:#fff;background:var(--color-accent,#2f6feb);
+  border-color:var(--color-accent,#2f6feb)}
+#stage-strip .dot{width:7px;height:7px;border-radius:50%;
+  background:currentColor;opacity:.35;flex:none}
+#stage-strip .stage.done .dot{opacity:1}
+#stage-strip .stage.active .dot{opacity:1;animation:vpulse 1s ease-in-out infinite}
+#stage-strip .sep{opacity:.3;font-size:.75rem}
+#stage-strip .elapsed{margin-left:auto;font-variant-numeric:tabular-nums;
+  font-size:.8rem;color:var(--body-text-color-subdued)}
+#stage-strip .bar{width:100%;height:2px;border-radius:2px;overflow:hidden;
+  background:var(--background-fill-secondary);margin-top:2px}
+#stage-strip .bar i{display:block;height:100%;width:40%;border-radius:2px;
+  background:var(--color-accent,#2f6feb);animation:vslide 1.1s ease-in-out infinite}
+@keyframes vpulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.9);opacity:.45}}
+@keyframes vslide{0%{margin-left:-40%}100%{margin-left:100%}}
+@media (prefers-reduced-motion:reduce){
+  #stage-strip .stage.active .dot{animation:none}
+  #stage-strip .bar i{animation:none;width:100%}
+}
+"""
+"""Animation is opt-out under prefers-reduced-motion.
+
+A pulsing dot and a sliding bar are exactly the kind of motion that triggers
+vestibular symptoms, and a demo nobody can look at is not a demo.
+"""
+
+
+def render_status(record: TrajectoryRecord, elapsed: float, running: bool) -> str:
+    """The stage strip: what the agent is doing, right now.
+
+    Purely a view over the steps the recorder has already written. It reads
+    state and renders it -- it cannot change what the agent does, which is the
+    point: the demo should show the methodology, never participate in it.
+    """
+    if not running and not record.steps:
+        return ""
+
+    seen = {step.kind for step in record.steps}
+    current = record.steps[-1].kind if record.steps else None
+
+    chips = []
+    for index, (kind, label) in enumerate(_STAGES):
+        if running and kind is current:
+            state = "active"
+        elif kind in seen:
+            state = "done"
+        else:
+            state = ""
+        if index:
+            chips.append('<span class="sep">&rsaquo;</span>')
+        chips.append(f'<span class="stage {state}"><i class="dot"></i>{label}</span>')
+
+    tail = (
+        f'<span class="elapsed">{elapsed:.1f}s</span>'
+        if running
+        else f'<span class="elapsed">done in {elapsed:.1f}s</span>'
+    )
+    bar = '<span class="bar"><i></i></span>' if running else ""
+    return f'<div id="stage-strip">{"".join(chips)}{tail}{bar}</div>'
+
+
 def render_trajectory(record: TrajectoryRecord) -> str:
     """The reasoning tree as markdown."""
     lines = [f"### Trajectory `{record.session_id}`", ""]
@@ -167,7 +251,7 @@ def build_app(settings: Settings, config: PipelineConfig) -> Any:
     store = settings.resolved(str(DEFAULT_TRAJECTORY_STORE))
     provider_ready = settings.has_google_key
 
-    def answer(question: str, live: bool) -> Iterator[tuple[str, str, str, str, str]]:
+    def answer(question: str, live: bool) -> Iterator[tuple[str, str, str, str, str, str]]:
         """Stream the run as it happens.
 
         This used to block for the whole run and return once. A multi-tool
@@ -184,12 +268,12 @@ def build_app(settings: Settings, config: PipelineConfig) -> Any:
         """
         question = (question or "").strip()
         if not question:
-            yield "Ask something.", "", "", "", ""
+            yield "", "Ask something.", "", "", "", ""
             return
 
         if not (live and provider_ready):
             reason = "No API key configured." if not provider_ready else "Replay mode selected."
-            yield _fallback(store, f"{reason} Showing a recorded run.")
+            yield ("", *_fallback(store, f"{reason} Showing a recorded run."))
             return
 
         with AgentSession(
@@ -211,27 +295,36 @@ def build_app(settings: Settings, config: PipelineConfig) -> Any:
             worker.start()
 
             started = time.perf_counter()
+            live_record = session.recorder.record
             while worker.is_alive():
-                worker.join(timeout=0.4)
+                # 0.25s is a compromise: fast enough that a stage change reads
+                # as immediate, slow enough that a 60-second run re-renders a
+                # few hundred times rather than a few thousand.
+                worker.join(timeout=0.25)
                 elapsed = time.perf_counter() - started
                 yield (
-                    f"_Working… {elapsed:.0f}s_",
+                    render_status(live_record, elapsed, running=True),
                     "",
                     "",
                     "",
-                    render_trajectory(session.recorder.record),
+                    "",
+                    render_trajectory(live_record),
                 )
 
         if failed:
             exc = failed[0]
             log.warning("live run failed, falling back to replay", error=str(exc)[:200])
-            yield _fallback(
-                store, f"Live run failed ({type(exc).__name__}). Showing a recorded run."
+            yield (
+                "",
+                *_fallback(
+                    store, f"Live run failed ({type(exc).__name__}). Showing a recorded run."
+                ),
             )
             return
 
         record = done[0]
         yield (
+            render_status(record, time.perf_counter() - started, running=False),
             record.final_answer or "_No answer._",
             render_citations(record),
             render_cost(record),
@@ -243,6 +336,11 @@ def build_app(settings: Settings, config: PipelineConfig) -> Any:
     # telemetry to an external endpoint on launch, and a project that ships a
     # threat model should not make an undeclared outbound request on startup.
     with gr.Blocks(title="Vichara - trajectory viewer", analytics_enabled=False) as app:
+        # A static <style> element rather than the Blocks css= parameter, which
+        # Gradio 6 removes. This renders once and is never re-sent; putting it
+        # in the status component would ship the stylesheet again on every
+        # 0.25s update.
+        gr.HTML(f"<style>{_STATUS_CSS}</style>", padding=False)
         gr.Markdown(
             "# Vichara\n"
             "A study agent that plans, calls tools, and cites its sources. "
@@ -267,6 +365,7 @@ def build_app(settings: Settings, config: PipelineConfig) -> Any:
         run = gr.Button("Ask", variant="primary")
         gr.Examples(examples=EXAMPLES, inputs=question)
 
+        status_box = gr.HTML(label="Progress", padding=False)
         answer_box = gr.Markdown(label="Answer")
         with gr.Row():
             citations_box = gr.Markdown(label="Sources")
@@ -274,7 +373,7 @@ def build_app(settings: Settings, config: PipelineConfig) -> Any:
         guardrails_box = gr.Markdown(label="Guardrails")
         trajectory_box = gr.Markdown(label="Trajectory")
 
-        outputs = [answer_box, citations_box, cost_box, guardrails_box, trajectory_box]
+        outputs = [status_box, answer_box, citations_box, cost_box, guardrails_box, trajectory_box]
         run.click(answer, inputs=[question, live], outputs=outputs)
         question.submit(answer, inputs=[question, live], outputs=outputs)
 
