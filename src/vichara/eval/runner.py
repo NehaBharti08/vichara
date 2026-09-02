@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import json
 import time
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -61,6 +61,35 @@ class SweepConfig:
     max_requests: int | None = None
     """Halts the sweep before it exhausts the day's allowance. Without it an
     overnight run can consume the quota and leave nothing for the morning."""
+
+
+def _sweep_order(tasks: Sequence[GoldTask], seeds: Sequence[int]) -> list[tuple[int, GoldTask]]:
+    """Seed-major: every task once at seed 0, then everything again at seed 1.
+
+    Task-major ordering ran all five seeds of one task before starting the
+    next, which is fine for a sweep that finishes and quietly corrupting for
+    one that does not. On a free tier interruption is the normal case, and the
+    quota died at the same place every time -- so the partial sweep this
+    project reported for weeks covered 97% of single-tool tasks and about 20%
+    of everything else:
+
+        single_tool  92/95   ambiguous    5/25
+        impossible    8/30   multi_tool  11/55
+
+    Single-tool is the easiest category (0.989 complete) and ambiguous the
+    hardest (0.840), so the interruption did not merely shrink the sample, it
+    selected the easy end of it. The reported 0.966 was never a whole-set
+    number.
+
+    Seed-major makes an interrupted sweep an honest one. Stop it anywhere and
+    every task has been attempted a near-equal number of times: breadth first,
+    depth second. The n is smaller and the sample is not skewed, which is the
+    trade worth making when the run may be cut off at any point.
+
+    Order within a seed is left alone. It is the gold-set order, it is stable,
+    and shuffling it would buy nothing once the category skew is gone.
+    """
+    return [(seed, task) for seed in seeds for task in tasks]
 
 
 class ResultStore:
@@ -146,58 +175,57 @@ def run_sweep(
     consecutive_failures = 0
     produced: list[TaskResult] = []
 
-    for task in selected:
-        for seed in seeds:
-            if (task.id, seed) in done:
-                continue
-            if sweep.max_requests is not None and requests_used >= sweep.max_requests:
-                log.warning(
-                    "sweep halted at its request ceiling",
-                    used=requests_used,
-                    ceiling=sweep.max_requests,
-                )
-                return produced
+    for seed, task in _sweep_order(selected, seeds):
+        if (task.id, seed) in done:
+            continue
+        if sweep.max_requests is not None and requests_used >= sweep.max_requests:
+            log.warning(
+                "sweep halted at its request ceiling",
+                used=requests_used,
+                ceiling=sweep.max_requests,
+            )
+            return produced
 
-            result = _run_one(settings, config, task, seed, sweep)
-            requests_used += result.llm_requests
+        result = _run_one(settings, config, task, seed, sweep)
+        requests_used += result.llm_requests
 
-            # A fatal error is almost always the provider being unreachable --
-            # on a free tier, the day's request quota running out mid-sweep.
-            # Persisting it would be the worst possible outcome: resume skips
-            # completed (task, seed) pairs, so a quota outage would be baked
-            # into the results permanently and reported as the agent failing.
-            # It is not recorded, so the pair simply runs again later.
-            if result.terminal_reason == "fatal_error":
-                consecutive_failures += 1
-                log.warning(
-                    "run failed, not recorded",
-                    task=task.id,
-                    seed=seed,
-                    consecutive=consecutive_failures,
-                )
-                if consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
-                    # One failure is a blip; several in a row is the provider
-                    # being down or the quota being gone. Churning through the
-                    # remaining tasks would spend an hour proving it.
-                    log.warning(
-                        "halting: the provider looks unavailable",
-                        consecutive=consecutive_failures,
-                        hint="resume later; nothing was recorded for the failed pairs",
-                    )
-                    return produced
-                continue
-
-            consecutive_failures = 0
-            store.append(result)
-            produced.append(result)
-            log.info(
-                "task scored",
+        # A fatal error is almost always the provider being unreachable --
+        # on a free tier, the day's request quota running out mid-sweep.
+        # Persisting it would be the worst possible outcome: resume skips
+        # completed (task, seed) pairs, so a quota outage would be baked
+        # into the results permanently and reported as the agent failing.
+        # It is not recorded, so the pair simply runs again later.
+        if result.terminal_reason == "fatal_error":
+            consecutive_failures += 1
+            log.warning(
+                "run failed, not recorded",
                 task=task.id,
                 seed=seed,
-                terminal=result.terminal_reason,
-                correct=result.terminal_correct,
-                requests=result.llm_requests,
+                consecutive=consecutive_failures,
             )
+            if consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
+                # One failure is a blip; several in a row is the provider
+                # being down or the quota being gone. Churning through the
+                # remaining tasks would spend an hour proving it.
+                log.warning(
+                    "halting: the provider looks unavailable",
+                    consecutive=consecutive_failures,
+                    hint="resume later; nothing was recorded for the failed pairs",
+                )
+                return produced
+            continue
+
+        consecutive_failures = 0
+        store.append(result)
+        produced.append(result)
+        log.info(
+            "task scored",
+            task=task.id,
+            seed=seed,
+            terminal=result.terminal_reason,
+            correct=result.terminal_correct,
+            requests=result.llm_requests,
+        )
 
     return produced
 

@@ -13,8 +13,8 @@ from pathlib import Path
 
 from vichara.eval.metrics import TaskResult, agent_version_of
 from vichara.eval.report import for_agent
-from vichara.eval.runner import ResultStore
-from vichara.eval.tasks.schema import Category
+from vichara.eval.runner import ResultStore, _sweep_order
+from vichara.eval.tasks.schema import Category, GoldTask, Terminal
 
 VERSION = agent_version_of({"act": "aaa", "plan": "bbb"})
 OTHER = agent_version_of({"act": "CHANGED", "plan": "bbb"})
@@ -122,3 +122,65 @@ class TestReportScoping:
     def test_unversioned_rows_are_excluded(self) -> None:
         """They came from an unknown prompt set and cannot be attributed."""
         assert for_agent([self.result("t-1", "")], VERSION) == []
+
+
+class TestSweepOrder:
+    """Task-major ordering made every interrupted sweep a biased sample.
+
+    The quota died in the same place each time, so the partial sweep this
+    project reported for weeks covered 92/95 single-tool tasks and 5/25
+    ambiguous ones. Single-tool scores 0.989 complete and ambiguous 0.840, so
+    the interruption selected the easy end of the set rather than a smaller
+    slice of it.
+    """
+
+    def task(self, task_id: str, category: Category) -> GoldTask:
+        return GoldTask.model_validate(
+            {
+                "id": task_id,
+                "category": category,
+                "split": "dev",
+                "task": "a question about biology",
+                "expected_terminal": Terminal.ANSWERED,
+                "expected_tools": ["textbook_search"],
+                "optimal_path": ["textbook_search"],
+                "answer_contains": ["a"],
+            }
+        )
+
+    def tasks(self) -> list[GoldTask]:
+        return [self.task(f"easy-{i}", Category.SINGLE_TOOL) for i in range(4)] + [
+            self.task(f"hard-{i}", Category.AMBIGUOUS) for i in range(2)
+        ]
+
+    def test_every_task_is_attempted_before_any_is_repeated(self) -> None:
+        """The property that makes a truncated sweep honest."""
+        order = _sweep_order(self.tasks(), [0, 1, 2])
+        first_pass = [t.id for _s, t in order[: len(self.tasks())]]
+
+        assert sorted(first_pass) == sorted(t.id for t in self.tasks())
+
+    def test_truncation_keeps_the_category_mix(self) -> None:
+        """Task-major put all four single-tool tasks before either ambiguous one."""
+        order = _sweep_order(self.tasks(), [0, 1, 2])
+        cut = [t.category for _s, t in order[:6]]
+
+        assert cut.count(Category.AMBIGUOUS) == 2
+
+    def test_nothing_is_dropped_or_duplicated(self) -> None:
+        order = _sweep_order(self.tasks(), [0, 1, 2])
+
+        assert len(order) == 18
+        assert len({(s, t.id) for s, t in order}) == 18
+
+    def test_seeds_advance_only_after_a_full_pass(self) -> None:
+        order = _sweep_order(self.tasks(), [0, 1])
+        seeds = [s for s, _t in order]
+
+        assert seeds == [0] * 6 + [1] * 6
+
+    def test_a_single_seed_is_unchanged(self) -> None:
+        """--repeats 1 has no ordering question to get wrong."""
+        order = _sweep_order(self.tasks(), [0])
+
+        assert [t.id for _s, t in order] == [t.id for t in self.tasks()]
