@@ -25,6 +25,10 @@ recorded trajectory and says plainly that it is doing so.
 
 from __future__ import annotations
 
+import os
+import threading
+import time
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
@@ -163,27 +167,71 @@ def build_app(settings: Settings, config: PipelineConfig) -> Any:
     store = settings.resolved(str(DEFAULT_TRAJECTORY_STORE))
     provider_ready = settings.has_google_key
 
-    def answer(question: str, live: bool) -> tuple[str, str, str, str, str]:
+    def answer(question: str, live: bool) -> Iterator[tuple[str, str, str, str, str]]:
+        """Stream the run as it happens.
+
+        This used to block for the whole run and return once. A multi-tool
+        question takes the better part of a minute, so the page sat inert for
+        ~55 seconds with no indication anything was happening, and the only
+        reasonable conclusion from the outside was that it had hung. The first
+        person to try it said it was not working. It was working.
+
+        Yielding is not just a progress bar here. The pitch of this project is
+        that the trajectory matters more than the answer, and a viewer that
+        hides the trajectory until after the answer arrives argues the
+        opposite. Watching plan, act and execute appear one at a time *is* the
+        demo.
+        """
         question = (question or "").strip()
         if not question:
-            return "Ask something.", "", "", "", ""
+            yield "Ask something.", "", "", "", ""
+            return
 
-        if live and provider_ready:
-            try:
-                with AgentSession(
-                    settings, config, auto_approve=True, prefer_recorded_search=True
-                ) as session:
-                    record = session.run(question).record
-            except Exception as exc:  # noqa: BLE001 - a dead demo is the worst outcome
-                log.warning("live run failed, falling back to replay", error=str(exc)[:200])
-                return _fallback(
-                    store, f"Live run failed ({type(exc).__name__}). Showing a recorded run."
-                )
-        else:
+        if not (live and provider_ready):
             reason = "No API key configured." if not provider_ready else "Replay mode selected."
-            return _fallback(store, f"{reason} Showing a recorded run.")
+            yield _fallback(store, f"{reason} Showing a recorded run.")
+            return
 
-        return (
+        with AgentSession(
+            settings, config, auto_approve=True, prefer_recorded_search=True
+        ) as session:
+            done: list[TrajectoryRecord] = []
+            failed: list[Exception] = []
+
+            def work() -> None:
+                try:
+                    done.append(session.run(question).record)
+                except Exception as exc:  # noqa: BLE001 - a dead demo is the worst outcome
+                    failed.append(exc)
+
+            # A daemon thread rather than a pool: a ThreadPoolExecutor context
+            # manager joins on exit, so a run that wedges would take the UI
+            # down with it instead of leaving a page that still responds.
+            worker = threading.Thread(target=work, daemon=True)
+            worker.start()
+
+            started = time.perf_counter()
+            while worker.is_alive():
+                worker.join(timeout=0.4)
+                elapsed = time.perf_counter() - started
+                yield (
+                    f"_Working… {elapsed:.0f}s_",
+                    "",
+                    "",
+                    "",
+                    render_trajectory(session.recorder.record),
+                )
+
+        if failed:
+            exc = failed[0]
+            log.warning("live run failed, falling back to replay", error=str(exc)[:200])
+            yield _fallback(
+                store, f"Live run failed ({type(exc).__name__}). Showing a recorded run."
+            )
+            return
+
+        record = done[0]
+        yield (
             record.final_answer or "_No answer._",
             render_citations(record),
             render_cost(record),
@@ -249,10 +297,22 @@ def _fallback(store: Path, notice: str) -> tuple[str, str, str, str, str]:
 
 
 def main() -> None:
+    """Serve the UI.
+
+    Host and port come from the environment, defaulting to what Spaces expects.
+    They were hardcoded, which worked on Spaces and nowhere else: the Dockerfile
+    sets GRADIO_SERVER_PORT and the launch call ignored it, so running this
+    beside anything already on 7860 -- the sibling VidyaRAG demo, for one --
+    failed with "cannot find empty port in range: 7860-7860" and no way to move
+    it short of an edit.
+    """
     settings = Settings()
     configure_logging(settings.log_level, settings.log_format)
     config = load_pipeline_config(settings.profile)
-    build_app(settings, config).launch(server_name="0.0.0.0", server_port=7860)
+    build_app(settings, config).launch(
+        server_name=os.environ.get("GRADIO_SERVER_NAME", "0.0.0.0"),
+        server_port=int(os.environ.get("GRADIO_SERVER_PORT", "7860")),
+    )
 
 
 if __name__ == "__main__":
