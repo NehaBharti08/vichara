@@ -258,6 +258,13 @@ against a bad rule.
 - **Retrieval is the fixture corpus, not the live service.** 440 real OpenStax
   passages ranked with BM25, where VidyaRAG ranks densely. Same citations,
   different ranking. See [ATTRIBUTION](../data/fixtures/ATTRIBUTION.md).
+- **Retrieval relevance is inferred from text, never from a score.** The
+  backend computes one and the tool drops it, so an out-of-corpus query is
+  indistinguishable from a well-covered one except by reading the passages.
+  Neither backend returns empty: BM25 answers a quantum-chromodynamics query
+  with genetics passages at 6.5 against 27–31 for real hits, and the live dense
+  index does the same at 0.55 against 0.80–0.82. The refusal numbers here were
+  earned against the wider BM25 gap and may not transfer to the live service.
 - **Web search is recorded, not live**, and deliberately so: a number measured
   against whatever was indexed this morning cannot be re-derived in three
   months.

@@ -132,6 +132,17 @@ To add capability, copy `.env.example` to `.env`. Every key is optional.
 
 The fixture backend ranks lexically (BM25) where the live service ranks densely. They do not rank identically, and **every result in this repo was produced against fixtures**. See [`data/fixtures/ATTRIBUTION.md`](data/fixtures/ATTRIBUTION.md).
 
+**The live read path is verified working** — `POST /v1/search` answered against the real 768-dim index and returned the right sections (`17.3. The Pituitary Gland and Hypothalamus` for a hypothalamus question, `12.4. The Action Potential` for a resting-potential one). Testing it turned up the sharpest live-vs-fixture difference found so far, and it is not the ranking:
+
+| query | BM25 (fixture) | dense (live) |
+|---|---|---|
+| in-corpus | 27–31 | 0.80–0.82 |
+| **out-of-corpus** | **6.5** | **0.55** |
+
+**Neither backend returns empty.** Ask either one about quantum chromodynamics and it hands back three genetics passages — BM25 because "chromodynamics" lexically matches "chromosomal", dense because a nearest neighbour always exists. BM25's 5× score gap makes the miss obvious; dense cosine's is far narrower.
+
+And the agent sees neither, because **the tool computes the score and discards it** — it forwards only citation, book, section, page and text. So the agent cannot distinguish the best match in a corpus that covers a topic from the best match in one that does not, and must infer irrelevance by reading the passage. It does that well against fixtures (refusal correctness 1.00, false-refusal 0.026), but those numbers were earned where off-topic hits read obviously wrong. Whether they transfer to the live service is untested, and surfacing the score is the obvious next experiment rather than a change made on the way past.
+
 ## Related
 
 - [VidyaRAG](https://github.com/NehaBharti08/VidyaRAG) — the textbook retrieval service this agent calls as its primary tool.
