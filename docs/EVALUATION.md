@@ -4,13 +4,11 @@
 argument that the agent works, and — more usefully — the record of where it
 does not.
 
-> **Status: n=5 across seeds 0-4, dev and test pooled, 116 scored runs.**
-> The sweep halted at 182 of 205 pairs when the free-tier daily quota ran out.
-> The 57 runs the provider failed are **dropped, not scored** — a quota
-> exhaustion is not agent behaviour, and counting those as failures would
-> report the agent losing capability it never lost. 25 of 41 tasks have all
-> five seeds; the rest have three or four. Spread is reported as median and
-> IQR throughout.
+> **Status: n=5 complete. 41 tasks × 5 seeds, 205 runs, no gaps.** Runs the
+> provider failed are dropped rather than scored — a quota exhaustion is not
+> agent behaviour. Spread is reported as median and IQR throughout, and the
+> three tasks that remain inconsistent across seeds are named rather than
+> averaged away.
 
 ## Method
 
@@ -40,21 +38,72 @@ because nothing mechanical can answer it.
 Overfitting prompts to an eval set is the commonest silent failure in agent
 evaluation, and the only defence is not to look.
 
-## Results (n=5, 41 tasks, 116 scored runs)
+## Results (n=5, 41 tasks, 205 runs, complete)
 
 | metric | value | reading |
 | --- | --- | --- |
-| terminal_correct | **0.966** | mean over 116 runs |
-| answer_correct | 0.952 | n=105; the remainder have nothing to answer |
+| terminal_correct | **0.946** | over 205 runs |
+| answer_correct | 0.877 | |
 | forbidden_tool_rate | **0.000** | never reached for a tool the task forbids |
-| tool_precision (median) | **1.00** | IQR 0.00 — every tool it called was one the task needed |
+| tool_precision (median) | **1.00** | IQR 0.00 |
 | tool_recall (median) | **1.00** | IQR 0.00 |
-| refusal_correct | **1.00** | every impossible task refused within the step gate |
+| refusal_correct | **1.00** | all 30 impossible runs, every one inside the step gate |
 | mean_steps_to_refusal | 0.0 | refusals happen in the planner, before any tool call |
-| false_refusal_rate | 0.026 | 3 of 116 |
-| cited_rate | 0.888 | the remainder are refusals and clarifications |
-| step_efficiency (median) | **1.00** | IQR 0.50, min 0.20 — the median run is optimal, a third are not |
-| llm_requests (median) | 4.0 | IQR 4.0 |
+| false_refusal_rate | 0.049 | |
+| cited_rate | 0.727 | the remainder are refusals and clarifications |
+| step_efficiency (median) | **1.00** | IQR 0.50 |
+| llm_requests (median) | 2.0 | IQR 3.0 |
+
+### By category, which is where the number actually lives
+
+| category | n | terminal_correct | step_efficiency |
+| --- | --- | --- | --- |
+| impossible | 30 | **1.000** | — |
+| single_tool | 95 | **0.989** | 1.00 |
+| multi_tool | 55 | 0.891 | 0.67 |
+| ambiguous | 25 | **0.840** | — |
+
+Tool selection and refusal are solved. Orchestration and ambiguity are not, and
+a pooled 0.946 conceals a 0.840 and a 1.000 sitting inside it.
+
+Still inconsistent across seeds: `ambiguous-recent-work` (1/5),
+`multi-smooth-muscle` (4/5), `search-glp1-mechanism` (4/5). The first is the
+worst task in the set and the only one that fails more often than it succeeds.
+
+### The previously published 0.966 was never a whole-set number
+
+The earlier sweep was interrupted by the daily quota at 116 of 205 runs, which
+this document disclosed. What it did not disclose — because it was not known —
+is that the interruption was **not random**. The runner iterated task-major,
+running all five seeds of one task before starting the next, so the quota died
+in the same place every time:
+
+| category | covered by the interrupted sweep |
+| --- | --- |
+| single_tool | **92/95 (97%)** |
+| impossible | 8/30 (27%) |
+| multi_tool | 11/55 (20%) |
+| ambiguous | 5/25 (20%) |
+
+Single-tool scores 0.989 and ambiguous 0.840, so the surviving sample was the
+easy end of the task set rather than a smaller slice of it. Saying "116 of 205"
+described the size of the gap and nothing about its shape.
+
+The sweep now runs **seed-major**: every task once at seed 0, then everything
+again at seed 1. Truncating at any point now yields the full set's category mix
+— verified against the real gold set at 19/11/6/5, identical. Breadth first,
+depth second, which is the right trade when a free tier can cut the run off at
+any point.
+
+**The drop from 0.966 to 0.946 is therefore coverage, not regression.** On the
+116 pairs both sweeps actually ran:
+
+| on identical pairs | before | after |
+| --- | --- | --- |
+| terminal_correct | 0.9655 | **0.9828** |
+| false_refusal_rate | 0.0259 | **0.0172** |
+| answer_correct | 0.9524 | 0.9429 |
+| step_efficiency (median) | 1.000 | 1.000 |
 
 ### Step efficiency was published as 0.333, and that was a bug in the metric
 
@@ -240,10 +289,10 @@ against a bad rule.
 
 ## Honest limitations
 
-- **The sweep is incomplete.** 116 of a planned 205 runs. 25 of 41 tasks have
-  all five seeds; the rest have three or four, and three multi-tool tasks have
-  one. Per-task rates on those are not claimable, and are labelled where they
-  appear.
+- **n=5 is five seeds, not a confidence interval.** Every task has all five and
+  the sweep is complete, but five runs still put a wide band around any
+  per-task rate. Three tasks disagree with themselves across seeds and are
+  named rather than smoothed into the mean.
 - **`agent_version` covers prompts, not code.** It folds the prompt-file
   hashes, so a prompt edited underneath a running sweep is caught. A
   behavioural change in a node — making loop detection soft, for instance —
@@ -251,10 +300,11 @@ against a bad rule.
   refactor, so discarding prior runs across a behavioural code change is a
   judgement the operator has to make. Superseded runs are kept in
   `eval_results/archive/` rather than deleted.
-- **The two fixes above are unmeasured.** The result-side loop detector and the
-  act budget line were both derived from the runs in this document and have not
-  been evaluated against a fresh sweep. `prompt_hashes` changed, so no future
-  run will be silently pooled with these.
+- **The fixes were tuned on the runs that motivated them.** The result-side
+  loop detector, the act budget line, the refusal wording and the soft loop
+  rules were all derived from earlier sweeps of this same task set, and the
+  prompt tuning used `dev` only. The complete sweep above measures them, but it
+  is not an independent test set in the sense a held-out benchmark would be.
 - **Retrieval is the fixture corpus, not the live service.** 440 real OpenStax
   passages ranked with BM25, where VidyaRAG ranks densely. Same citations,
   different ranking. See [ATTRIBUTION](../data/fixtures/ATTRIBUTION.md).

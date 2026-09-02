@@ -12,16 +12,50 @@ The agent loop is the least interesting part of this repository. A LangGraph ReA
 
 ## Results
 
-**41 tasks, annotated by hand before the agent ever ran. 116 runs across five seeds.** Six metrics computed mechanically from the trajectory; one judged.
+**41 tasks, annotated by hand before the agent ever ran. 205 runs, five seeds, complete.** Six metrics computed mechanically from the trajectory; one judged.
 
 | metric | value | what it means |
 |---|---|---|
-| terminal correctness | **0.966** | reached the right terminal state |
+| terminal correctness | **0.946** | reached the right terminal state |
 | tool precision | **1.00** (median, IQR 0) | every tool it called was one the task needed |
 | forbidden-tool rate | **0.000** | never reached for a tool the task forbids |
-| refusal correctness | **1.00** | every impossible task refused, all within the step gate |
-| answer correctness | 0.952 | |
-| **step efficiency** | **1.00** (median, IQR 0.50) | the median run is optimal; a third are not — see below |
+| refusal correctness | **1.00** | all 30 impossible runs refused, every one inside the step gate |
+| answer correctness | 0.877 | |
+| false-refusal rate | 0.049 | |
+| **step efficiency** | **1.00** (median, IQR 0.50) | the median run is optimal; a third are not |
+
+Per category, which is where the number actually lives:
+
+| category | n | terminal correctness | step efficiency |
+|---|---|---|---|
+| impossible | 30 | **1.000** | — |
+| single-tool | 95 | **0.989** | 1.00 |
+| multi-tool | 55 | 0.891 | 0.67 |
+| ambiguous | 25 | **0.840** | — |
+
+Orchestration and ambiguity are the weaknesses; tool selection and refusal are not.
+
+### The previously published 0.966 was never a whole-set number
+
+An earlier sweep was interrupted by the free-tier daily quota at 116 of 205 runs. That was disclosed. What was not disclosed — because it was not known — is that the runner iterated **task-major**, so the quota died in the same place every time and the surviving sample was not a smaller slice of the task set but the easy end of it:
+
+| category | covered by the interrupted sweep |
+|---|---|
+| single-tool | **92/95 (97%)** |
+| impossible | 8/30 (27%) |
+| multi-tool | 11/55 (20%) |
+| ambiguous | 5/25 (20%) |
+
+Single-tool scores 0.989 complete and ambiguous 0.840. The sweep now runs **seed-major** — every task once at seed 0, then everything again at seed 1 — so truncating at any point yields the full set's category mix (verified: 19/11/6/5, identical). Breadth first, depth second, which is the right trade when the run may be cut off at any point.
+
+**So the drop from 0.966 to 0.946 is coverage, not regression.** On the 116 pairs both sweeps actually ran:
+
+| on identical pairs | before | after |
+|---|---|---|
+| terminal correctness | 0.9655 | **0.9828** |
+| false refusal | 0.0259 | **0.0172** |
+| answer correctness | 0.9524 | 0.9429 |
+| step efficiency (median) | 1.000 | 1.000 |
 
 **Step efficiency was reported as 0.333 and that was a bug in the metric, not the agent.** The numerator counted *tool calls a human would make*; the denominator counted *graph nodes executed*. A flawless single-tool run executes plan → act → execute → synthesize and scored 0.333 for doing exactly the right thing. Counting the same unit on both sides gives a median of **1.00**.
 
@@ -56,7 +90,7 @@ Citation verification took false-citation attacks from 0.25 to **0.00**. The one
 
 **The most useful thing in that document is a correction.** It first reported 0.43 — until I found my own scoring counted the agent *reporting* an attack as being compromised by it. The agent was quoting payloads as evidence, exactly as designed. Both sweeps were re-run. [The full write-up](docs/PROMPT_INJECTION.md) leads with that mistake.
 
-> **116 of a planned 205 runs.** The sweep halted when the free-tier daily quota ran out; the 57 runs the provider failed are dropped rather than scored, because a quota exhaustion is not agent behaviour. 25 of 41 tasks have all five seeds, the rest three or four, and three multi-tool tasks have one — per-task rates on those are not claimable and are labelled where they appear.
+> **All 205 runs are present: 41 tasks × 5 seeds, no gaps.** Runs the provider failed are dropped rather than scored — a quota exhaustion is not agent behaviour, and scoring it would report the agent losing capability it never lost. Three tasks remain inconsistent across seeds (`ambiguous-recent-work` 1/5, `multi-smooth-muscle` 4/5, `search-glp1-mechanism` 4/5) and are named rather than averaged away.
 
 **Evidence:** [`docs/EVALUATION.md`](docs/EVALUATION.md) · [`docs/PROMPT_INJECTION.md`](docs/PROMPT_INJECTION.md) · [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md) · raw results in [`eval_results/`](eval_results/)
 
