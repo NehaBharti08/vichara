@@ -372,10 +372,13 @@ def evaluate(
     ] = None,
 ) -> None:
     """Run an evaluation sweep. Resumable -- safe to interrupt and restart."""
+    from vichara.agent.nodes.context import PROMPT_DIR
     from vichara.eval.faults import FaultKind, FaultSpec
-    from vichara.eval.report import summarise, to_markdown
+    from vichara.eval.metrics import agent_version_of
+    from vichara.eval.report import for_agent, summarise, to_markdown
     from vichara.eval.runner import DEFAULT_RESULTS, ResultStore, SweepConfig, run_sweep
     from vichara.eval.tasks.loader import load_tasks
+    from vichara.trajectory.recorder import hash_prompts
 
     settings = Settings()
     cfg = load_pipeline_config(profile or settings.profile)
@@ -404,10 +407,20 @@ def evaluate(
 
     run_sweep(settings, cfg, tasks, sweep, resume=not no_resume)
 
-    # Report over *everything* recorded for this profile, not only what this
-    # invocation produced -- otherwise a resumed sweep reports on its last
-    # fragment and the numbers look worse than the run actually was.
-    summary = summarise(ResultStore(DEFAULT_RESULTS / f"{cfg.name}.jsonl").read())
+    # Report over everything recorded for this profile *by this agent*, not
+    # only what this invocation produced -- otherwise a resumed sweep reports
+    # on its last fragment and the numbers look worse than the run was. The
+    # agent filter is what keeps that from also pooling runs made before a
+    # prompt edit into the same average.
+    every = ResultStore(DEFAULT_RESULTS / f"{cfg.name}.jsonl").read()
+    version = agent_version_of(hash_prompts(PROMPT_DIR))
+    results = for_agent(every, version)
+    if len(results) != len(every):
+        console.print(
+            f"[yellow]{len(every) - len(results)} run(s) from a different prompt version "
+            f"excluded; reporting {len(results)} for {version}.[/yellow]"
+        )
+    summary = summarise(results)
     _print_summary(summary)
 
     if report_to:

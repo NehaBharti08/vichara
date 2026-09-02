@@ -18,6 +18,21 @@ from vichara.eval.metrics import Distribution, TaskResult, rate
 from vichara.eval.tasks.schema import Category
 
 
+def for_agent(results: Sequence[TaskResult], version: str) -> list[TaskResult]:
+    """Only the runs produced by the prompt set now on disk.
+
+    A sweep reports over everything recorded for its profile rather than the
+    fragment this invocation produced, so that resuming does not make the
+    numbers look worse than the run was. That is right across a resume and
+    wrong across a prompt edit: the first sweep after one printed
+    "230 runs / 41 tasks", pooling 116 runs from the previous agent with 114
+    from the current one into a single table -- the exact averaging that
+    ``agent_version`` exists to prevent, in the one place a person actually
+    reads the number.
+    """
+    return [r for r in results if r.agent_version == version]
+
+
 def summarise(results: Sequence[TaskResult]) -> dict[str, object]:
     """Aggregate one sweep."""
     if not results:
