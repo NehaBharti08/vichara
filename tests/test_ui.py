@@ -22,11 +22,13 @@ from vichara.trajectory.schema import (
     TrajectoryRecord,
 )
 from vichara.ui.app import (
+    _STATUS_CSS,
     _fallback,
     build_app,
     render_citations,
     render_cost,
     render_guardrails,
+    render_status,
     render_trajectory,
 )
 
@@ -173,3 +175,71 @@ class TestAppConstruction:
     def test_the_app_builds_without_credentials(self, profile: str) -> None:
         """Same property the rest of the project holds: no key required."""
         assert build_app(Settings(), load_pipeline_config(profile)) is not None
+
+
+class TestStageStrip:
+    """The progress strip is a view, never a participant.
+
+    A blocking handler made a working 55-second run look hung: the page sat
+    inert with no sign of life and the first person to try it reported it
+    broken. The strip exists to show what the agent is doing while it does it.
+    """
+
+    def record(self, *kinds: StepKind) -> TrajectoryRecord:
+        rec = TrajectoryRecord(session_id="s1", task="q")
+        for index, kind in enumerate(kinds):
+            rec.steps.append(StepRecord(index=index, kind=kind, started_at="2026-01-01T00:00:00Z"))
+        return rec
+
+    def test_nothing_is_shown_before_a_run_starts(self) -> None:
+        assert render_status(self.record(), 0.0, running=False) == ""
+
+    def test_the_newest_step_is_the_active_one(self) -> None:
+        html = render_status(self.record(StepKind.PLAN, StepKind.ACT), 1.0, running=True)
+
+        assert 'class="stage active"><i class="dot"></i>Choose tool' in html
+
+    def test_finished_stages_read_as_done_not_active(self) -> None:
+        html = render_status(self.record(StepKind.PLAN, StepKind.ACT), 1.0, running=True)
+
+        assert 'class="stage done"><i class="dot"></i>Plan' in html
+
+    def test_unreached_stages_stay_neutral(self) -> None:
+        html = render_status(self.record(StepKind.PLAN), 1.0, running=True)
+
+        assert 'class="stage "><i class="dot"></i>Answer' in html
+
+    def test_a_finished_run_has_no_active_stage(self) -> None:
+        """The pulse must stop, or a finished run looks like it is still going."""
+        html = render_status(self.record(StepKind.PLAN, StepKind.SYNTHESIZE), 9.0, running=False)
+
+        assert "stage active" not in html
+        assert "done in 9.0s" in html
+
+    def test_the_indeterminate_bar_only_runs_while_the_agent_does(self) -> None:
+        rec = self.record(StepKind.PLAN)
+
+        assert '<span class="bar">' in render_status(rec, 1.0, running=True)
+        assert '<span class="bar">' not in render_status(rec, 1.0, running=False)
+
+    def test_repeated_stages_do_not_duplicate_chips(self) -> None:
+        """A multi-tool run revisits act and execute several times."""
+        rec = self.record(
+            StepKind.PLAN, StepKind.ACT, StepKind.EXECUTE, StepKind.ACT, StepKind.EXECUTE
+        )
+
+        assert render_status(rec, 4.0, running=True).count("Call tool") == 1
+
+    def test_conditional_nodes_do_not_appear_as_stages(self) -> None:
+        """Reflect and compress are real steps; they are not spine stages.
+
+        They show up in the trajectory below when they run. Putting them in the
+        strip would imply every run has them.
+        """
+        html = render_status(self.record(StepKind.PLAN, StepKind.REFLECT), 2.0, running=True)
+
+        assert "reflect" not in html.lower()
+
+    def test_motion_is_opt_out(self) -> None:
+        """A pulsing dot is exactly the motion that triggers vestibular symptoms."""
+        assert "prefers-reduced-motion" in _STATUS_CSS

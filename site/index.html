@@ -86,7 +86,10 @@ footer{margin-top:48px;padding-top:20px;border-top:1px solid var(--line);
     Docker Spaces, so this is a static page rather than a live agent — it loads
     instantly and cannot show a cold start or an exhausted quota. Everything
     below came from the real agent and is committed in the repository.
-    Every number is n=1: a shape, not a rate.
+    The metrics above are computed from all 205 recorded runs &mdash; 41 tasks,
+    five seeds &mdash; rather than restated from a document. The seven
+    trajectories below are chosen to show distinct behaviour, not to be
+    representative of the set.
   </div>
 
   <h2>Seven behaviours worth looking at</h2>
@@ -109,7 +112,7 @@ const METRICS = [
   ["tool_precision", "tool precision", false],
   ["forbidden_tool_rate", "forbidden tools", false],
   ["refusal_correct", "refusal", false],
-  ["step_efficiency", "step efficiency", true],
+  ["step_efficiency", "step efficiency", false],
   ["asr_hardened", "attack success", false],
 ];
 

@@ -143,6 +143,59 @@ def trim(record: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
+def metrics() -> dict[str, float]:
+    """Compute what the page shows, rather than restating it.
+
+    These were hardcoded, and the page drifted exactly as far as you would
+    expect: it went on serving ``step_efficiency: 0.333`` for weeks after the
+    README had retracted that number as a unit-mismatch bug in the metric, and
+    ``terminal_correct: 0.976`` from a sweep two agent versions old. A literal
+    in a build script has no way to go stale loudly.
+
+    Scoped to the agent whose prompts are on disk, for the same reason the
+    sweep report is: averaging two agent versions into one figure describes
+    neither. A missing or empty results file raises rather than falling back to
+    a default -- publishing a plausible wrong number is worse than not
+    publishing.
+    """
+    from vichara.agent.nodes.context import PROMPT_DIR
+    from vichara.eval.metrics import agent_version_of
+    from vichara.eval.report import for_agent, summarise
+    from vichara.eval.runner import ResultStore
+    from vichara.trajectory.recorder import hash_prompts
+
+    version = agent_version_of(hash_prompts(PROMPT_DIR))
+    rows = for_agent(ResultStore(ROOT / "eval_results" / "baseline.jsonl").read(), version)
+    if not rows:
+        raise SystemExit(f"no baseline results for agent {version}; run the sweep first")
+
+    overall = summarise(rows)["overall"]
+    assert isinstance(overall, dict)
+    out = {
+        "tasks": float(len({r.task_id for r in rows})),
+        "runs": float(len(rows)),
+        "terminal_correct": overall["terminal_correct"],
+        "tool_precision": overall["tool_precision"]["median"],
+        "forbidden_tool_rate": overall["forbidden_tool_rate"],
+        "refusal_correct": overall["refusal_correct"],
+        "step_efficiency": overall["step_efficiency"]["median"],
+    }
+    for profile in ("baseline", "hardened"):
+        out[f"asr_{profile}"] = _asr(profile)
+    return {k: round(float(v), 4) for k, v in out.items()}
+
+
+def _asr(profile: str) -> float:
+    """Attack success rate from the recorded injection suite."""
+    path = ROOT / "eval_results" / f"injection-{profile}.jsonl"
+    rows = [
+        json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()
+    ]
+    if not rows:
+        raise SystemExit(f"no injection results for {profile}")
+    return sum(1 for r in rows if r["succeeded"]) / len(rows)
+
+
 def main() -> int:
     rows = load()
     examples = curate(rows)
@@ -150,16 +203,7 @@ def main() -> int:
     payload = {
         "generated_from": len(rows),
         "examples": examples,
-        "metrics": {
-            "tasks": 41,
-            "terminal_correct": 0.976,
-            "tool_precision": 1.00,
-            "forbidden_tool_rate": 0.0,
-            "refusal_correct": 1.00,
-            "step_efficiency": 0.333,
-            "asr_baseline": 0.11,
-            "asr_hardened": 0.04,
-        },
+        "metrics": metrics(),
     }
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
