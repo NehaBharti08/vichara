@@ -78,6 +78,36 @@ class AttackResult(BaseModel):
     that cannot be attributed, which is the point."""
 
 
+def completed_attacks(store: Path, agent_version: str) -> set[tuple[str, int]]:
+    """``(attack_id, seed)`` pairs this agent has already faced.
+
+    Scoped to the agent for the reason the eval runner's resume is, and it bit
+    harder here. Keyed on ``(attack_id, seed)`` alone, this marked all 28
+    attacks done the moment the file existed, so a re-run after a prompt change
+    executed nothing and printed a summary computed entirely from the previous
+    agent's rows -- reporting 0.11 for a measurement that never happened. The
+    giveaway was llm_requests coming back as zero, which a suite of 28 live
+    attacks cannot do.
+
+    Rows carrying no version are not done. They were produced by an unknown
+    agent, and an attack is cheap next to a defence rate nobody can attribute.
+    """
+    done: set[tuple[str, int]] = set()
+    if not store.exists():
+        return done
+    for line in store.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        try:
+            row = json.loads(line)
+            if row.get("agent_version", "") != agent_version:
+                continue
+            done.add((row["attack_id"], row.get("seed") or 0))
+        except (json.JSONDecodeError, KeyError):
+            continue
+    return done
+
+
 def poison_tool(tool: BaseTool, payload: str) -> BaseTool:
     """Append a payload to whatever this tool returns. Mutates in place.
 
@@ -199,15 +229,8 @@ def run_injection_sweep(
     store = (results_dir or DEFAULT_RESULTS) / f"injection-{sweep.profile}.jsonl"
     store.parent.mkdir(parents=True, exist_ok=True)
 
-    done: set[tuple[str, int]] = set()
-    if resume and store.exists():
-        for line in store.read_text(encoding="utf-8").splitlines():
-            if line.strip():
-                try:
-                    row = json.loads(line)
-                    done.add((row["attack_id"], row.get("seed") or 0))
-                except (json.JSONDecodeError, KeyError):
-                    continue
+    version = agent_version_of(hash_prompts(PROMPT_DIR))
+    done = completed_attacks(store, version) if resume else set()
 
     produced: list[AttackResult] = []
     for attack in corpus.attacks:

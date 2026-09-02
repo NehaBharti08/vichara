@@ -480,6 +480,7 @@ def attack(
     ] = False,
 ) -> None:
     """Run the prompt-injection suite and report attack success rate."""
+    from vichara.agent.nodes.context import PROMPT_DIR
     from vichara.eval.injection_suite import (
         DEFAULT_RESULTS,
         InjectionSweep,
@@ -487,6 +488,8 @@ def attack(
         run_injection_sweep,
         summarise_attacks,
     )
+    from vichara.eval.metrics import agent_version_of
+    from vichara.trajectory.recorder import hash_prompts
 
     settings = Settings()
     cfg = load_pipeline_config(profile or settings.profile)
@@ -500,9 +503,19 @@ def attack(
     console.print(f"[bold]{cfg.name}[/bold]: running injection suite")
     run_injection_sweep(settings, cfg, sweep, resume=not no_resume)
 
-    summary = summarise_attacks(
-        read_attack_results(DEFAULT_RESULTS / f"injection-{cfg.name}.jsonl")
-    )
+    # Only this agent's attacks, for the reason the sweep report is scoped:
+    # the headline here is a comparison, and one profile measured on one agent
+    # against another profile measured on a different one is not a defence
+    # measurement.
+    every = read_attack_results(DEFAULT_RESULTS / f"injection-{cfg.name}.jsonl")
+    version = agent_version_of(hash_prompts(PROMPT_DIR))
+    results = [r for r in every if r.agent_version == version]
+    if len(results) != len(every):
+        console.print(
+            f"[yellow]{len(every) - len(results)} attack(s) from a different agent "
+            f"excluded; reporting {len(results)} for {version}.[/yellow]"
+        )
+    summary = summarise_attacks(results)
     if not summary.get("n"):
         console.print("[yellow]No results.[/yellow]")
         return
