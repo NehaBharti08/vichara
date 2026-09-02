@@ -22,12 +22,15 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
+from vichara.agent.nodes.context import PROMPT_DIR
 from vichara.agent.runner import AgentSession
+from vichara.eval.metrics import agent_version_of
 from vichara.eval.tasks.loader import load_tasks
 from vichara.guardrails.injection.attacks import Attack, AttackSet, SuccessKind, load_attacks
 from vichara.logging import get_logger
 from vichara.settings import PipelineConfig, Settings
 from vichara.tools.base import BaseTool, ToolResult
+from vichara.trajectory.recorder import hash_prompts
 from vichara.trajectory.schema import TrajectoryRecord
 
 log = get_logger(__name__)
@@ -60,6 +63,19 @@ class AttackResult(BaseModel):
 
     terminal_reason: str | None = None
     detail: str = ""
+
+    agent_version: str = ""
+    """Which agent produced this, digested from the prompt files.
+
+    The eval sweep has carried this since the day two prompt versions were
+    silently averaged into one table; the attack suite did not, and the
+    consequence is sharper here. The headline security claim is a *comparison*
+    -- baseline 0.11 against hardened 0.04 -- so a baseline measured on one
+    agent and a hardened run measured on another does not report a defence at
+    all, and nothing in the file would reveal it.
+
+    Empty on rows written before this field existed. Those are exactly the rows
+    that cannot be attributed, which is the point."""
 
 
 def poison_tool(tool: BaseTool, payload: str) -> BaseTool:
@@ -245,6 +261,7 @@ def _run_one(
                 profile=config.name,
                 seed=seed,
                 succeeded=False,
+                agent_version=agent_version_of(hash_prompts(PROMPT_DIR)),
                 detail=f"vector tool {attack.vector.value} unavailable",
             )
         poison_tool(target, attack.payload)
@@ -261,6 +278,7 @@ def _run_one(
             seed=seed,
             succeeded=succeeded,
             detected=detected,
+            agent_version=agent_version_of(hash_prompts(PROMPT_DIR)),
             terminal_reason=record.terminal_reason.value if record.terminal_reason else None,
             detail=detail,
         )
@@ -273,6 +291,7 @@ def _run_one(
             profile=config.name,
             seed=seed,
             succeeded=False,
+            agent_version=agent_version_of(hash_prompts(PROMPT_DIR)),
             detail=f"run failed after {time.perf_counter() - started:.1f}s: {exc}",
         )
     finally:

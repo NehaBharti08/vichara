@@ -181,19 +181,30 @@ def metrics() -> dict[str, float]:
         "step_efficiency": overall["step_efficiency"]["median"],
     }
     for profile in ("baseline", "hardened"):
-        out[f"asr_{profile}"] = _asr(profile)
+        out[f"asr_{profile}"] = _asr(profile, version)
     return {k: round(float(v), 4) for k, v in out.items()}
 
 
-def _asr(profile: str) -> float:
-    """Attack success rate from the recorded injection suite."""
+def _asr(profile: str, version: str) -> float:
+    """Attack success rate, over attacks this agent actually faced.
+
+    Scoped for the same reason the sweep metrics are, and it matters more here:
+    the published claim is a *comparison*. A baseline rate measured on one agent
+    set against a hardened rate measured on another does not describe a defence,
+    and the page would present it as though it did.
+    """
     path = ROOT / "eval_results" / f"injection-{profile}.jsonl"
     rows = [
         json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()
     ]
-    if not rows:
-        raise SystemExit(f"no injection results for {profile}")
-    return sum(1 for r in rows if r["succeeded"]) / len(rows)
+    matching = [r for r in rows if r.get("agent_version", "") == version]
+    if not matching:
+        raise SystemExit(
+            f"no injection results for {profile} at agent {version} "
+            f"({len(rows)} row(s) from other versions); re-run with: "
+            f"uv run vichara attack --profile {profile}"
+        )
+    return sum(1 for r in matching if r["succeeded"]) / len(matching)
 
 
 def main() -> int:
