@@ -121,11 +121,28 @@ existed. That question is mechanical and cannot be argued with.
 
 ## Cost: zero, measured
 
-The full 41-task evaluation was re-run under `hardened`: terminal correctness
-0.976, answer correctness 0.903, step efficiency 0.333 — identical to baseline
-on every metric, with a request count of 0 because on clean content the
-defences are a no-op, the prompts are byte-identical, and the cache served
-every one. **Zero false positives across 41 clean documents.**
+The full 41-task evaluation was re-run under `hardened` at n=5 — 205 runs,
+against 205 for baseline:
+
+| | baseline | hardened |
+| --- | --- | --- |
+| terminal correctness | 0.9463 | 0.9512 |
+| answer correctness | 0.8774 | 0.8839 |
+| cited rate | 0.7268 | 0.7317 |
+
+The two profiles diverge on **1 pair in 205**, and the request count was 0
+because the cache served every call.
+
+That is not a coincidence, and it is worth being precise about what it means.
+The defences act on tool *output*, not on prompts, so a task with no attack in
+it produces byte-identical messages under both profiles. On clean content the
+profiles are the same agent by construction.
+
+So this measures the right thing — **the defences cost nothing, and there are
+zero false positives across 41 clean documents** — while being unable, even in
+principle, to measure any *benefit*. The attack suite is the only place the
+delta exists. A clean-task table showing hardened ≈ baseline is evidence of
+harmlessness and nothing else.
 
 Narrow claim: the heuristics do not fire on *this* corpus. Not that they never
 will.
