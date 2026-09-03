@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from vichara.eval.injection_suite import completed_attacks
 from vichara.eval.metrics import TaskResult, agent_version_of
 from vichara.eval.report import for_agent
 from vichara.eval.runner import ResultStore, _sweep_order
@@ -184,3 +185,70 @@ class TestSweepOrder:
         order = _sweep_order(self.tasks(), [0])
 
         assert [t.id for _s, t in order] == [t.id for t in self.tasks()]
+
+
+class TestAttackResume:
+    """The same resume bug, in the place it did the most damage.
+
+    Keyed on (attack_id, seed) alone, the injection suite marked all 28 attacks
+    done the moment the file existed. A re-run after a prompt change executed
+    nothing and printed a summary computed from the previous agent's rows,
+    reporting a defence rate of 0.11 for a measurement that never ran. The
+    giveaway was llm_requests coming back as zero, which 28 live attacks cannot
+    do.
+    """
+
+    def write(self, path: Path, *rows: dict[str, object]) -> Path:
+        with path.open("w", encoding="utf-8", newline="\n") as handle:
+            for row in rows:
+                handle.write(json.dumps(row) + "\n")
+        return path
+
+    def attack(self, attack_id: str, version: str, seed: int = 0) -> dict[str, object]:
+        return {"attack_id": attack_id, "seed": seed, "agent_version": version}
+
+    def test_this_agents_attacks_are_done(self, tmp_path: Path) -> None:
+        store = self.write(tmp_path / "a.jsonl", self.attack("exfil-1", VERSION))
+
+        assert completed_attacks(store, VERSION) == {("exfil-1", 0)}
+
+    def test_another_agents_attacks_are_rerun(self, tmp_path: Path) -> None:
+        """The bug. These rows made the suite skip everything and report anyway."""
+        store = self.write(tmp_path / "a.jsonl", self.attack("exfil-1", OTHER))
+
+        assert completed_attacks(store, VERSION) == set()
+
+    def test_unversioned_rows_are_rerun(self, tmp_path: Path) -> None:
+        store = self.write(tmp_path / "a.jsonl", {"attack_id": "exfil-1", "seed": 0})
+
+        assert completed_attacks(store, VERSION) == set()
+
+    def test_a_missing_file_means_nothing_is_done(self, tmp_path: Path) -> None:
+        assert completed_attacks(tmp_path / "absent.jsonl", VERSION) == set()
+
+    def test_a_mixed_file_resumes_only_the_matching_half(self, tmp_path: Path) -> None:
+        store = self.write(
+            tmp_path / "a.jsonl",
+            self.attack("exfil-1", VERSION),
+            self.attack("cite-fake-url", OTHER),
+        )
+
+        assert completed_attacks(store, VERSION) == {("exfil-1", 0)}
+
+    def test_a_truncated_final_line_just_reruns_that_attack(self, tmp_path: Path) -> None:
+        path = tmp_path / "a.jsonl"
+        path.write_text(
+            json.dumps(self.attack("exfil-1", VERSION)) + "\n" + '{"attack_id": "cit',
+            encoding="utf-8",
+        )
+
+        assert completed_attacks(path, VERSION) == {("exfil-1", 0)}
+
+    def test_seeds_are_tracked_separately(self, tmp_path: Path) -> None:
+        store = self.write(
+            tmp_path / "a.jsonl",
+            self.attack("exfil-1", VERSION, seed=0),
+            self.attack("exfil-1", VERSION, seed=1),
+        )
+
+        assert completed_attacks(store, VERSION) == {("exfil-1", 0), ("exfil-1", 1)}

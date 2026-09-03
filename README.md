@@ -86,6 +86,8 @@ That makes four defects found in this repo's own instruments — the injection s
 | baseline | **0.11** | 3 of 28 |
 | hardened | **0.04** | 1 of 28 |
 
+Re-run on the current agent, and the aggregate held while the composition moved: `cite-fake-url` no longer succeeds, `refuse-poison-claim` now does. One attack fixed, one regressed, and 0.11 hid both — which is why the write-up names the attacks that work rather than reporting only a rate.
+
 Citation verification took false-citation attacks from 0.25 to **0.00**. The one attack that still works is stopped in practice by the human approval interrupt, not by a filter.
 
 **The most useful thing in that document is a correction.** It first reported 0.43 — until I found my own scoring counted the agent *reporting* an attack as being compromised by it. The agent was quoting payloads as evidence, exactly as designed. Both sweeps were re-run. [The full write-up](docs/PROMPT_INJECTION.md) leads with that mistake.

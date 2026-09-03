@@ -22,12 +22,15 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
+from vichara.agent.nodes.context import PROMPT_DIR
 from vichara.agent.runner import AgentSession
+from vichara.eval.metrics import agent_version_of
 from vichara.eval.tasks.loader import load_tasks
 from vichara.guardrails.injection.attacks import Attack, AttackSet, SuccessKind, load_attacks
 from vichara.logging import get_logger
 from vichara.settings import PipelineConfig, Settings
 from vichara.tools.base import BaseTool, ToolResult
+from vichara.trajectory.recorder import hash_prompts
 from vichara.trajectory.schema import TrajectoryRecord
 
 log = get_logger(__name__)
@@ -60,6 +63,49 @@ class AttackResult(BaseModel):
 
     terminal_reason: str | None = None
     detail: str = ""
+
+    agent_version: str = ""
+    """Which agent produced this, digested from the prompt files.
+
+    The eval sweep has carried this since the day two prompt versions were
+    silently averaged into one table; the attack suite did not, and the
+    consequence is sharper here. The headline security claim is a *comparison*
+    -- baseline 0.11 against hardened 0.04 -- so a baseline measured on one
+    agent and a hardened run measured on another does not report a defence at
+    all, and nothing in the file would reveal it.
+
+    Empty on rows written before this field existed. Those are exactly the rows
+    that cannot be attributed, which is the point."""
+
+
+def completed_attacks(store: Path, agent_version: str) -> set[tuple[str, int]]:
+    """``(attack_id, seed)`` pairs this agent has already faced.
+
+    Scoped to the agent for the reason the eval runner's resume is, and it bit
+    harder here. Keyed on ``(attack_id, seed)`` alone, this marked all 28
+    attacks done the moment the file existed, so a re-run after a prompt change
+    executed nothing and printed a summary computed entirely from the previous
+    agent's rows -- reporting 0.11 for a measurement that never happened. The
+    giveaway was llm_requests coming back as zero, which a suite of 28 live
+    attacks cannot do.
+
+    Rows carrying no version are not done. They were produced by an unknown
+    agent, and an attack is cheap next to a defence rate nobody can attribute.
+    """
+    done: set[tuple[str, int]] = set()
+    if not store.exists():
+        return done
+    for line in store.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        try:
+            row = json.loads(line)
+            if row.get("agent_version", "") != agent_version:
+                continue
+            done.add((row["attack_id"], row.get("seed") or 0))
+        except (json.JSONDecodeError, KeyError):
+            continue
+    return done
 
 
 def poison_tool(tool: BaseTool, payload: str) -> BaseTool:
@@ -183,15 +229,8 @@ def run_injection_sweep(
     store = (results_dir or DEFAULT_RESULTS) / f"injection-{sweep.profile}.jsonl"
     store.parent.mkdir(parents=True, exist_ok=True)
 
-    done: set[tuple[str, int]] = set()
-    if resume and store.exists():
-        for line in store.read_text(encoding="utf-8").splitlines():
-            if line.strip():
-                try:
-                    row = json.loads(line)
-                    done.add((row["attack_id"], row.get("seed") or 0))
-                except (json.JSONDecodeError, KeyError):
-                    continue
+    version = agent_version_of(hash_prompts(PROMPT_DIR))
+    done = completed_attacks(store, version) if resume else set()
 
     produced: list[AttackResult] = []
     for attack in corpus.attacks:
@@ -245,6 +284,7 @@ def _run_one(
                 profile=config.name,
                 seed=seed,
                 succeeded=False,
+                agent_version=agent_version_of(hash_prompts(PROMPT_DIR)),
                 detail=f"vector tool {attack.vector.value} unavailable",
             )
         poison_tool(target, attack.payload)
@@ -261,6 +301,7 @@ def _run_one(
             seed=seed,
             succeeded=succeeded,
             detected=detected,
+            agent_version=agent_version_of(hash_prompts(PROMPT_DIR)),
             terminal_reason=record.terminal_reason.value if record.terminal_reason else None,
             detail=detail,
         )
@@ -273,6 +314,7 @@ def _run_one(
             profile=config.name,
             seed=seed,
             succeeded=False,
+            agent_version=agent_version_of(hash_prompts(PROMPT_DIR)),
             detail=f"run failed after {time.perf_counter() - started:.1f}s: {exc}",
         )
     finally:
