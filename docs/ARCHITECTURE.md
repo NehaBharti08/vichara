@@ -159,9 +159,10 @@ spend, and no count of the evidence it held — so every limit arrived as an
 unexplained stop rather than a pressure it could plan against. This is the
 larger half of the step-efficiency tail: byte-identical repeats fully explain
 only 3 of 36 sub-optimal runs, while 23 have no duplicates at all and simply
-never conclude. Both fixes are unmeasured; the act prompt edit moved
-`prompt_hashes`, so the sweep that would measure them cannot be pooled with
-the one that motivated them.
+never conclude. Both were then measured on the eight tasks they targeted, n=5
+each side: terminal correctness 37/40 to 39/40, step efficiency median 0.333 to
+0.500, `loop_detected` 3 to 0. Improved, not solved — 0.50 is still two tool
+calls where one suffices.
 
 **The warm sandbox worker leaks state between executions.** One submission
 cleared `sys.meta_path` and weakened the sandbox for every later call in that
