@@ -12,7 +12,7 @@ The agent loop is the least interesting part of this repository. A LangGraph ReA
 
 ## Results
 
-**41 tasks, annotated by hand before the agent ever ran. 205 runs, five seeds, complete.** Six metrics computed mechanically from the trajectory; one judged.
+**41 tasks, annotated by hand before the agent ever ran. 205 runs, five seeds, complete.** Seven metrics, every one computed mechanically from the trajectory. No LLM judge.
 
 | metric | value | what it means |
 |---|---|---|
