@@ -1,6 +1,6 @@
 # Evaluation
 
-41 annotated tasks, six programmatic metrics, one judged. This document is the
+41 annotated tasks, seven metrics, all mechanical. This document is the
 argument that the agent works, and — more usefully — the record of where it
 does not.
 
@@ -27,12 +27,21 @@ to — the corpus lacks the passage. Without the check, a retrieval miss and a
 corpus gap are indistinguishable, and every number computed over such a task
 is noise attributed to the agent.
 
-**Six metrics are mechanical, one is judged.** Tool precision and recall, step
-efficiency, refusal correctness, forbidden-tool rate, grounding, and
-cost/latency are all computed from `(trajectory, gold task)` with no model
-involved. They can be re-run over stored trajectories months later without
-re-running the agent. Only "does this citation support this claim" is judged,
-because nothing mechanical can answer it.
+**Every metric is mechanical. There is no LLM judge.** Tool precision and
+recall, step efficiency, refusal correctness, forbidden-tool rate, grounding
+and cost/latency are all pure functions of `(trajectory, gold task)` with no
+model involved, so they re-run over stored trajectories months later at zero
+cost -- which is what makes a result re-derivable rather than merely reported.
+
+This was going to be six mechanical and one judged, with grounding asking
+"does this passage support this claim". That judge is not built, and on
+reflection it should not be the headline it was drafted as. A model scoring
+another model's output has an unknown error rate, needs its own
+human-agreement study to mean anything, and would be the one number here that
+cannot be recomputed for free. `grounding_sources_present` instead asks the
+narrow mechanical question -- did the expected section appear among the
+citations the tools actually returned -- and is labelled as the weaker,
+answerable thing it is.
 
 **dev / test split.** 28 dev, 13 test. Prompts are tuned against dev only.
 Overfitting prompts to an eval set is the commonest silent failure in agent
@@ -319,11 +328,14 @@ against a bad rule.
   against whatever was indexed this morning cannot be re-derived in three
   months.
 - **`answer_contains` is a keyword check**, which is a weak proxy for
-  correctness. It is used anyway because it is *mechanical*; six mechanical
-  metrics with a known weakness beat one judged metric with an unknown one.
-- **The grounding judge is not yet implemented**, so `grounding_sources_present`
-  currently checks that the expected section appears among the citations the
-  tools returned — not that the passage supports the claim.
+  correctness. It is used anyway because it is *mechanical*: a known weakness
+  is worth more than a judged metric with an unknown one.
+- **Nothing here checks whether a cited passage actually supports the claim.**
+  `grounding_sources_present` asks only whether the expected section is among
+  the citations the tools returned. Entailment is the obvious next metric and
+  it is deliberately absent rather than approximated by a model, which would
+  add a number that cannot be recomputed and whose error rate nobody has
+  measured.
 - **Fault injection is implemented but not yet swept**, so no recovery rate is
   reported.
 - **The corpus is sparse** at roughly two passages per section, which caps how

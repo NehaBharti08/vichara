@@ -12,7 +12,7 @@ The agent loop is the least interesting part of this repository. A LangGraph ReA
 
 ## Results
 
-**41 tasks, annotated by hand before the agent ever ran. 205 runs, five seeds, complete.** Six metrics computed mechanically from the trajectory; one judged.
+**41 tasks, annotated by hand before the agent ever ran. 205 runs, five seeds, complete.** Seven metrics, every one computed mechanically from the trajectory. No LLM judge.
 
 | metric | value | what it means |
 |---|---|---|
@@ -35,47 +35,44 @@ Per category, which is where the number actually lives:
 
 Orchestration and ambiguity are the weaknesses; tool selection and refusal are not.
 
-### The previously published 0.966 was never a whole-set number
+### Six defects — four in the measuring instruments, two in the agent
 
-An earlier sweep was interrupted by the free-tier daily quota at 116 of 205 runs. That was disclosed. What was not disclosed — because it was not known — is that the runner iterated **task-major**, so the quota died in the same place every time and the surviving sample was not a smaller slice of the task set but the easy end of it:
+The agent loop was never the hard part. Measuring it honestly was. Each of
+these was found by checking one concrete case against the arithmetic, and the
+first two had already been **published here as agent weaknesses** before anyone
+thought to check the instrument that produced them.
 
-| category | covered by the interrupted sweep |
-|---|---|
-| single-tool | **92/95 (97%)** |
-| impossible | 8/30 (27%) |
-| multi-tool | 11/55 (20%) |
-| ambiguous | 5/25 (20%) |
-
-Single-tool scores 0.989 complete and ambiguous 0.840. The sweep now runs **seed-major** — every task once at seed 0, then everything again at seed 1 — so truncating at any point yields the full set's category mix (verified: 19/11/6/5, identical). Breadth first, depth second, which is the right trade when the run may be cut off at any point.
-
-**So the drop from 0.966 to 0.946 is coverage, not regression.** On the 116 pairs both sweeps actually ran:
-
-| on identical pairs | before | after |
+| # | what was wrong | how it showed up |
 |---|---|---|
-| terminal correctness | 0.9655 | **0.9828** |
-| false refusal | 0.0259 | **0.0172** |
-| answer correctness | 0.9524 | 0.9429 |
-| step efficiency (median) | 1.000 | 1.000 |
+| 1 | Injection scoring counted the agent *reporting* an attack as being compromised by it | ASR published at 0.43; actually **0.11** |
+| 2 | Step efficiency divided tool calls by graph nodes — two different units | Published at 0.333; actually **1.00** |
+| 3 | *(agent)* Loop detection fingerprinted **arguments, never results** | 8.3% of all tool output was bytes the agent already held |
+| 4 | *(agent)* A detected loop *discarded* runs holding 5 and 10 citations — including the exact passage needed | 3 runs lost to `loop_detected` while holding the answer |
+| 5 | Task-major sweep order made an interrupted run **the easy end of the set**, not a smaller sample | 97% coverage of single-tool tasks vs 20% of ambiguous |
+| 6 | The injection suite skipped all 28 attacks and printed a rate anyway | reported `0.11` from **zero work** |
 
-**Step efficiency was reported as 0.333 and that was a bug in the metric, not the agent.** The numerator counted *tool calls a human would make*; the denominator counted *graph nodes executed*. A flawless single-tool run executes plan → act → execute → synthesize and scored 0.333 for doing exactly the right thing. Counting the same unit on both sides gives a median of **1.00**.
+Defect 5 is the one worth dwelling on. Disclosing "116 of 205 runs" describes
+the *size* of a gap and says nothing about its *shape* — and the shape was that
+the quota died in the same place every sweep. **A resumable job that iterates in
+a fixed order doesn't degrade gracefully; it degrades selectively.** The sweep
+now runs seed-major, so truncating anywhere preserves the full set's category
+mix (verified: 19/11/6/5, identical).
 
-**Chasing the worst remaining run found a third bug, this time in a guardrail.** The agent called `textbook_search` five times where one sufficed — and BM25 returned *byte-identical* results every time. Neither loop rule fired, because both fingerprint **arguments**, and the reformulated queries sat at 0.62–0.76 similarity, under the 0.9 threshold. Across the sweep, **8.3% of all tool output was bytes the agent already held.** Loop detection now hashes what a tool returned, not just what was asked.
+Defect 6 was caught by two guards built after the earlier ones: the static site
+refuses to publish an unattributable number, and `llm_requests` came back as
+`0` — which 28 live attacks cannot do.
 
-Being careful about what that fixes: duplicates fully explain **3** of the 36 sub-optimal runs, partially 10, and 23 have no duplicates at all. The majority retrieve genuinely different passages and never decide they are done — which `act` was asked to judge while being shown no step count, no tool spend, and no count of evidence held. It now sees all three.
+The common root cause behind 5 and 6: **results keyed by identity without
+recording which agent produced them.** Every results file now carries
+`agent_version`, and resume, reporting and publication all refuse to mix
+versions.
 
-**Measured, on the eight tasks the fixes targeted** — n=5 both sides, 40 runs each. Deliberately not a headline number: those tasks were picked because they were the worst, so the subset is biased by construction.
+Fixing 3 and 4 was measured, not assumed — n=5 on the eight tasks they
+targeted: terminal correctness 37/40 → **39/40**, step efficiency median
+0.333 → **0.500**, `loop_detected` 3 → **0**. *Improved, not solved* — 0.50 is
+still two tool calls where one would do.
 
-| | before | after |
-|---|---|---|
-| terminal correctness | 37/40 | **39/40** |
-| step efficiency (median) | 0.333 | **0.500** |
-| `loop_detected` | 3 | **0** |
-
-Both previously-unstable tasks improved and none regressed. `rag-innate-immunity` sits in the **test** split, was never tuned against, and moved 0.20 → 0.50. **Step efficiency is improved, not solved** — a median of 0.50 is still two calls where one would do; the agent stops sooner, not yet at the right time.
-
-Getting there cost two regressions, both caught before publication. The first budget line made the agent refuse answerable questions to save budget. Fixing that exposed a second underneath: three runs halted on `loop_detected` while holding 5, 5 and 10 citations — one of them the exact passage needed — reporting *"I stopped because I was repeating the same action without making progress"*. That is the thirteen-citations bug in the branch the soft ceiling never covered, and `block()`'s own docstring had the faulty reasoning written down. Loops are now soft.
-
-That makes four defects found in this repo's own instruments — the injection scoring, the step-efficiency units, a guardrail that watched the wrong end of the tool call, and a scorer that never read the `prompt_hashes` recorded specifically so two agent versions could not be averaged together. Each was caught by checking one concrete case against the arithmetic, and the first two had been published as agent weaknesses.
+Full detail: [`docs/EVALUATION.md`](docs/EVALUATION.md).
 
 ### Prompt injection
 
@@ -121,7 +118,23 @@ uv run vichara health                              # what this environment can a
 uv run vichara run "..." --trajectory              # answer a question, show the reasoning
 uv run vichara evaluate --repeats 3                # the evaluation sweep
 uv run vichara attack --profile hardened           # the injection suite
+
+uv run python app.py                               # the interactive agent, at localhost:7860
 ```
+
+`app.py` is the one worth running. It is the same UI the Space serves, except
+live: you ask a question and watch the trajectory build a step at a time — plan,
+tool choice, tool call, result — with elapsed time and the stage the agent is
+currently in. Expect 30-60 seconds for a multi-tool question. Set
+`GRADIO_SERVER_PORT` if 7860 is taken.
+
+Three questions that show three different behaviours:
+
+| ask | expected |
+|---|---|
+| *How does the hypothalamus control the anterior pituitary gland?* | a cited answer |
+| *Explain the quantum biology chapter in OpenStax Biology* | a **refusal** — no such chapter exists |
+| *Is it normal?* | a **clarifying question**, not a guess |
 
 No credentials are required. With an empty environment `health` exits 0 and reports a *degraded* capability set — tools fall back to fixture backends and the agent is told to say what it cannot do rather than guess. That is a supported way to run this project, not a broken one.
 

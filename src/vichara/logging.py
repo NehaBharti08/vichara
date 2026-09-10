@@ -24,6 +24,29 @@ import structlog
 _configured = False
 
 
+def _quieten_vendor_loggers() -> None:
+    """Silence one vendor warning that is noise here, and only that one.
+
+    ``langchain_google_genai`` logs "Key 'additionalProperties' is not
+    supported in schema, ignoring" on every request that binds a tool. Gemini's
+    schema dialect has no ``additionalProperties``, and every tool this agent
+    exposes sets ``extra="forbid"``, so the key is always present and the
+    warning always fires -- once per tool per call.
+
+    Dropping ``extra="forbid"`` would silence it at the wrong end. That setting
+    is why a hallucinated argument is rejected instead of being quietly
+    discarded, which cost a real debugging session to discover. The constraint
+    is enforced here, by pydantic, when the model's arguments are validated;
+    the provider ignoring it in the schema it publishes changes nothing about
+    that. So the warning is describing a difference that does not matter, on a
+    line the operator cannot act on, in front of every answer the agent gives.
+
+    Raised to ERROR rather than disabled, so anything genuinely wrong in that
+    module still surfaces.
+    """
+    logging.getLogger("langchain_google_genai._function_utils").setLevel(logging.ERROR)
+
+
 def configure_logging(
     level: str = "INFO",
     fmt: Literal["json", "console"] = "json",
@@ -48,6 +71,7 @@ def configure_logging(
         level=numeric_level,
         force=True,
     )
+    _quieten_vendor_loggers()
 
     shared: list[Any] = [
         structlog.contextvars.merge_contextvars,
