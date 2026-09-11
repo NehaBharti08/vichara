@@ -110,6 +110,33 @@ vestibular symptoms, and a demo nobody can look at is not a demo.
 """
 
 
+_LATEX_DELIMITERS: list[dict[str, str | bool]] = [
+    {"left": "$$", "right": "$$", "display": True},
+    {"left": r"\[", "right": r"\]", "display": True},
+    {"left": r"\(", "right": r"\)", "display": False},
+    {"left": "$", "right": "$", "display": False},
+]
+"""Render the maths the model writes instead of printing its source.
+
+Gradio renders only ``$$...$$`` by default, and the model writes chemistry
+inline: a sodium-potassium pump answer came back reading
+``$\text{Na}^+/\text{K}^+$ ATPase`` on screen, which is worse than either
+plain text or rendered maths.
+
+Fixed here rather than by telling the model to write Unicode. That would be a
+prompt edit, and prompt edits move ``prompt_hashes`` and therefore
+``agent_version`` -- which would correctly invalidate 205 baseline runs, 205
+hardened and 56 attacks, about four days of free-tier quota, to change how
+superscripts look. The model's output is not wrong; the page was not rendering
+it.
+
+The single-``$`` entry is last because the list is tried in order, so ``$$``
+still wins. It is also the risky one: a literal dollar sign in an answer can
+open maths that never closes. Acceptable here -- the corpus is anatomy and
+physiology, where ``$`` appears in no passage and ionic charges appear in many.
+"""
+
+
 def render_status(record: TrajectoryRecord, elapsed: float, running: bool) -> str:
     """The stage strip: what the agent is doing, right now.
 
@@ -366,9 +393,9 @@ def build_app(settings: Settings, config: PipelineConfig) -> Any:
         gr.Examples(examples=EXAMPLES, inputs=question)
 
         status_box = gr.HTML(label="Progress", padding=False)
-        answer_box = gr.Markdown(label="Answer")
+        answer_box = gr.Markdown(label="Answer", latex_delimiters=_LATEX_DELIMITERS)
         with gr.Row():
-            citations_box = gr.Markdown(label="Sources")
+            citations_box = gr.Markdown(label="Sources", latex_delimiters=_LATEX_DELIMITERS)
             cost_box = gr.Markdown(label="Cost")
         guardrails_box = gr.Markdown(label="Guardrails")
         trajectory_box = gr.Markdown(label="Trajectory")
