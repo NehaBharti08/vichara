@@ -24,6 +24,7 @@ from vichara.trajectory.schema import (
 from vichara.ui.app import (
     _STATUS_CSS,
     _fallback,
+    _port,
     build_app,
     render_citations,
     render_cost,
@@ -243,3 +244,39 @@ class TestStageStrip:
     def test_motion_is_opt_out(self) -> None:
         """A pulsing dot is exactly the motion that triggers vestibular symptoms."""
         assert "prefers-reduced-motion" in _STATUS_CSS
+
+
+class TestPortSelection:
+    """Container hosts inject PORT and kill anything not listening on it.
+
+    The Dockerfile pins GRADIO_SERVER_PORT=7860, so an app that consulted its
+    own setting first would ignore the variable its host was waiting on and
+    fail to boot with "container failed to start and listen on the port".
+    """
+
+    def test_the_platform_wins(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("PORT", "8080")
+        monkeypatch.setenv("GRADIO_SERVER_PORT", "7860")
+
+        assert _port() == 8080
+
+    def test_the_app_setting_is_used_when_no_platform_sets_one(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.delenv("PORT", raising=False)
+        monkeypatch.setenv("GRADIO_SERVER_PORT", "7861")
+
+        assert _port() == 7861
+
+    def test_gradio_default_when_neither_is_set(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("PORT", raising=False)
+        monkeypatch.delenv("GRADIO_SERVER_PORT", raising=False)
+
+        assert _port() == 7860
+
+    def test_a_non_numeric_value_falls_through(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Some platforms export PORT="" rather than leaving it unset."""
+        monkeypatch.setenv("PORT", "")
+        monkeypatch.setenv("GRADIO_SERVER_PORT", "7862")
+
+        assert _port() == 7862

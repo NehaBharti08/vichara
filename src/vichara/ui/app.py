@@ -422,6 +422,28 @@ def _fallback(store: Path, notice: str) -> tuple[str, str, str, str, str]:
     )
 
 
+def _port() -> int:
+    """The port to bind, honouring the platform before the app's own setting.
+
+    ``PORT`` is the contract every container host uses -- Cloud Run, Render,
+    Fly, Railway -- and it is injected, not configured: the platform picks a
+    number, routes to it, and kills the container if nothing is listening
+    there. ``GRADIO_SERVER_PORT`` is this project's own knob and the Dockerfile
+    pins it to 7860, so checking it first would make the image ignore the very
+    variable its host is waiting on and fail to start, with the unhelpful
+    "container failed to start and listen on the port" that follows.
+
+    Nothing sets ``PORT`` on a developer machine, so local behaviour is
+    unchanged and ``GRADIO_SERVER_PORT`` still works for running this beside
+    something already on 7860.
+    """
+    for name in ("PORT", "GRADIO_SERVER_PORT"):
+        value = os.environ.get(name)
+        if value and value.isdigit():
+            return int(value)
+    return 7860
+
+
 def main() -> None:
     """Serve the UI.
 
@@ -437,7 +459,7 @@ def main() -> None:
     config = load_pipeline_config(settings.profile)
     build_app(settings, config).launch(
         server_name=os.environ.get("GRADIO_SERVER_NAME", "0.0.0.0"),
-        server_port=int(os.environ.get("GRADIO_SERVER_PORT", "7860")),
+        server_port=_port(),
     )
 
 
