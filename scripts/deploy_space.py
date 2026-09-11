@@ -19,7 +19,18 @@ import argparse
 import sys
 from pathlib import Path
 
+from dotenv import load_dotenv
 from huggingface_hub import HfApi
+
+# huggingface_hub reads HF_TOKEN from the process environment and knows nothing
+# about .env, so a token sitting in this project's .env -- where every other
+# credential lives -- was invisible to it and the deploy failed as
+# "not authenticated" while the token was right there. Loaded the same way
+# scripts/record_search.py already does it.
+#
+# Not `override=True`: an HF_TOKEN exported in the shell, or supplied by CI,
+# should win over whatever a developer left in a file.
+load_dotenv(dotenv_path=Path(__file__).resolve().parents[1] / ".env")
 
 # Anything not needed to build or run the image. The first three lines are the
 # ones that matter: a live key, whatever the file tool wrote, and trajectory
