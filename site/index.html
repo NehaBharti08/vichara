@@ -107,6 +107,47 @@ footer{margin-top:48px;padding-top:20px;border-top:1px solid var(--line);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c =>
   ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
+// The model writes chemistry as inline LaTeX -- $\text{Na}^+$, $\text{Ca}^{2+}$,
+// $\text{T}_4$ -- and a page with no maths renderer shows that source verbatim,
+// which is worse than either plain text or rendered maths.
+//
+// Unicode rather than KaTeX, because this page loads no CDN on purpose: it has
+// to still work in two years, and a script tag is a thing that can 404. Every
+// formula this corpus produces is an element symbol with a charge or a count,
+// which Unicode covers exactly. Anything it cannot map is left exactly as the
+// model wrote it -- visibly raw beats silently wrong, for chemistry.
+const SUP = {"0":"⁰","1":"¹","2":"²","3":"³","4":"⁴",
+  "5":"⁵","6":"⁶","7":"⁷","8":"⁸","9":"⁹",
+  "+":"⁺","-":"⁻","−":"⁻"};
+const SUB = {"0":"₀","1":"₁","2":"₂","3":"₃","4":"₄",
+  "5":"₅","6":"₆","7":"₇","8":"₈","9":"₉"};
+
+// All-or-nothing: a half-converted charge is worse than an unconverted one.
+const mapAll = (str, table) =>
+  [...str].every(c => table[c]) ? [...str].map(c => table[c]).join("") : null;
+
+function demath(text){
+  return String(text ?? "").replace(/\$([^$\n]{1,80})\$/g, function(whole, body){
+    // Require evidence of maths before touching anything. Without this,
+    // "costs $5 and $10" reads as a formula between two dollar signs and comes
+    // out as "costs 5 and10" -- the corpus has no prices, but a web search
+    // result can, and silently deleting a currency symbol is worse than
+    // leaving a formula unrendered.
+    if (!/[\\^_]/.test(body)) return whole;
+    let out = body.replace(/\\(?:text|mathrm|mathit|mathbf)\{([^{}]*)\}/g, "$1");
+    // Braced form first, or ^{2+} is read as ^{ followed by 2+.
+    out = out.replace(/\^\{([^{}]+)\}|\^(\S)/g, function(m, braced, bare){
+      return mapAll(braced !== undefined ? braced : bare, SUP) || m;
+    });
+    out = out.replace(/_\{([^{}]+)\}|_(\S)/g, function(m, braced, bare){
+      return mapAll(braced !== undefined ? braced : bare, SUB) || m;
+    });
+    out = out.replace(/\\[,;: ]/g, " ").replace(/\s+/g, " ").trim();
+    // If anything LaTeX-shaped survived, this was not a formula we understand.
+    return /[\\{}^_]/.test(out) ? whole : out;
+  });
+}
+
 const METRICS = [
   ["terminal_correct", "correct", false],
   ["tool_precision", "tool precision", false],
@@ -209,7 +250,7 @@ function show(data, i){
     t.setAttribute("aria-selected", String(n === i)));
   document.getElementById("view").innerHTML = `
     <div class="panel"><h3>Question</h3><p class="q">${esc(rec.task)}</p>
-      <h3>Answer</h3><div class="answer">${esc(rec.final_answer)}</div></div>
+      <h3>Answer</h3><div class="answer">${esc(demath(rec.final_answer))}</div></div>
     <div class="panel"><h3>Sources — returned by a tool</h3>${renderCitations(rec)}</div>
     <div class="panel"><h3>Cost</h3>${renderCost(rec)}</div>
     <div class="panel"><h3>Guardrails</h3>${renderGuardrails(rec)}</div>
