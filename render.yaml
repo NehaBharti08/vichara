@@ -1,0 +1,56 @@
+# Render blueprint for the live agent.
+#
+# The hosted demo on Hugging Face is a *static* page of recorded trajectories,
+# because HF charges for Gradio and Docker Spaces: creating one returns
+#
+#     402 Payment Required -- Static Spaces are free for everyone, but hosting
+#     Gradio and Docker Spaces on free cpu-basic requires a PRO subscription.
+#
+# Render hosts the same container for nothing and asks for no card, which is
+# why the interactive demo lives here and the recorded one lives there.
+#
+# What this costs you, stated plainly: a free Render service spins down after
+# 15 minutes without traffic and takes about a minute to wake. A reviewer
+# clicking cold waits. That is why the README links the static Space first --
+# it answers instantly and always -- and this second, for anyone who wants to
+# type their own question.
+services:
+  - type: web
+    name: vichara
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    region: oregon
+    healthCheckPath: /
+    autoDeployTrigger: commit
+    envVars:
+      # Render injects PORT and routes to it. app.py reads PORT before
+      # GRADIO_SERVER_PORT for exactly this reason -- the Dockerfile pins the
+      # latter to 7860, and honouring that here would bind a port nothing is
+      # listening on and fail as "container failed to start".
+      - key: GRADIO_SERVER_NAME
+        value: 0.0.0.0
+
+      # Set in the Render dashboard, never here. sync:false means "this service
+      # needs the value, ask me for it" rather than storing a key in git.
+      - key: GOOGLE_API_KEY
+        sync: false
+
+      # Optional. Absent, web_search degrades to its recorded fixture backend
+      # and the agent is told it can no longer search -- a supported state, not
+      # a broken one.
+      - key: TAVILY_API_KEY
+        sync: false
+
+      # No persistent disk on the free plan, so everything written at runtime
+      # has to be disposable. These are: a session workspace, the response
+      # cache and the checkpoint store. Losing them costs a cold cache, not
+      # correctness.
+      - key: WORKSPACE_ROOT
+        value: /tmp/sessions
+      - key: CACHE_PATH
+        value: /tmp/cache/llm_cache.sqlite
+      - key: CHECKPOINT_PATH
+        value: /tmp/cache/checkpoints.sqlite
+      - key: LOG_FORMAT
+        value: json
