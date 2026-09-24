@@ -21,7 +21,6 @@ Python interpreter and still be honest about what it cannot do.
 
 from __future__ import annotations
 
-import enum
 from pathlib import Path
 from typing import Any, Literal
 
@@ -29,11 +28,13 @@ import yaml
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from vichara.compat import StrEnum
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CONFIG_DIR = REPO_ROOT / "config"
 
 
-class SandboxBackend(enum.StrEnum):
+class SandboxBackend(StrEnum):
     """Which isolation mechanism executes agent-authored code.
 
     Both satisfy the same ``Sandbox`` protocol, so calling code never branches

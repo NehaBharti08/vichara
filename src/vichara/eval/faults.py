@@ -12,11 +12,11 @@ fault most likely to produce a wrong answer the agent is sure about.
 
 from __future__ import annotations
 
-import enum
 import random
 from dataclasses import dataclass
 from typing import Any
 
+from vichara.compat import StrEnum
 from vichara.logging import get_logger
 from vichara.tools.base import BaseTool, ToolResult
 from vichara.tools.config import OutputTrust
@@ -25,7 +25,7 @@ from vichara.tools.errors import RateLimited, Timeout
 log = get_logger(__name__)
 
 
-class FaultKind(enum.StrEnum):
+class FaultKind(StrEnum):
     TIMEOUT = "timeout"
     MALFORMED = "malformed"
     PLAUSIBLE_BUT_WRONG = "plausible_but_wrong"

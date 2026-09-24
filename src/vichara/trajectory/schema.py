@@ -20,16 +20,17 @@ silently changed shape is a silently changed result.
 
 from __future__ import annotations
 
-import enum
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from vichara.compat import UTC, StrEnum
+
 SCHEMA_VERSION = 1
 
 
-class TerminalReason(enum.StrEnum):
+class TerminalReason(StrEnum):
     """How a run ended. Read directly by the Phase 4 refusal metric, so every
     exit path must set one -- an unset value is a measurement hole."""
 
@@ -46,7 +47,7 @@ class TerminalReason(enum.StrEnum):
     FATAL_ERROR = "fatal_error"
 
 
-class StepKind(enum.StrEnum):
+class StepKind(StrEnum):
     PLAN = "plan"
     ACT = "act"
     GUARD = "guard"

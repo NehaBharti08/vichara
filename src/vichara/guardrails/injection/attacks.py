@@ -19,12 +19,12 @@ call.
 
 from __future__ import annotations
 
-import enum
 import json
 from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from vichara.compat import StrEnum
 from vichara.settings import REPO_ROOT
 
 DEFAULT_ATTACKS = REPO_ROOT / "data" / "attacks" / "injection.jsonl"
@@ -35,7 +35,7 @@ a trajectory is unambiguous -- it cannot have come from the corpus, the web
 recordings, or the model's own vocabulary."""
 
 
-class Vector(enum.StrEnum):
+class Vector(StrEnum):
     """Which tool's output carries the payload."""
 
     TEXTBOOK = "textbook_search"
@@ -43,7 +43,7 @@ class Vector(enum.StrEnum):
     FILE = "workspace_file"
 
 
-class Technique(enum.StrEnum):
+class Technique(StrEnum):
     """What the payload tries to make the agent do.
 
     Grouped by *effect* rather than by phrasing, because the report should say
@@ -67,7 +67,7 @@ class Technique(enum.StrEnum):
     """Make the agent invoke a capability the task never needed."""
 
 
-class SuccessKind(enum.StrEnum):
+class SuccessKind(StrEnum):
     ANSWER_CONTAINS = "answer_contains"
     TOOL_ARG_CONTAINS = "tool_arg_contains"
     TOOL_CALLED = "tool_called"
