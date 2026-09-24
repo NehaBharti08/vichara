@@ -15,13 +15,14 @@ event would destroy the loop's most valuable feedback signal.
 
 from __future__ import annotations
 
-import enum
 from typing import Protocol, runtime_checkable
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from vichara.compat import StrEnum
 
-class Outcome(enum.StrEnum):
+
+class Outcome(StrEnum):
     """How an execution ended. Counted directly by the Phase 4 metrics."""
 
     OK = "ok"

@@ -1,15 +1,16 @@
-"""Build the static demo payload.
+"""Build the recorded half of the demo.
 
-Hugging Face removed free Docker Spaces, so the hosted demo is a static page
-rather than a live agent. That is a smaller demo and a more reliable one: it
-loads instantly, never sleeps, and cannot show a cold-start error or an
-exhausted quota, which are the three ways a hosted agent demo usually
-embarrasses its author.
+The live agent is a separate Space, published by
+scripts/deploy_live_space.py. Both exist because they fail differently: a live
+agent can be cold, out of quota, or mid-deploy when someone clicks the link,
+and a static page of real trajectories cannot be any of those.
 
-What it shows is unchanged, because the viewer was always about *displaying* a
-trajectory rather than producing one. The curation below is the whole design
-decision: a reviewer with thirty seconds should land on runs that demonstrate
-the interesting behaviour, not on whichever trajectory happened to be last.
+Serving recordings costs this viewer nothing, because it was always about
+*displaying* a trajectory rather than producing one.
+
+The curation below is the whole design decision: a reviewer with thirty seconds
+should land on runs that demonstrate the interesting behaviour, not on
+whichever trajectory happened to be last.
 """
 
 from __future__ import annotations

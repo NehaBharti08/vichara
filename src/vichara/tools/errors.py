@@ -25,10 +25,10 @@ unwinds the loop.
 
 from __future__ import annotations
 
-import enum
+from vichara.compat import StrEnum
 
 
-class ErrorCode(enum.StrEnum):
+class ErrorCode(StrEnum):
     """Stable identifiers. Logged, counted, and asserted on in tests.
 
     Stability matters more than expressiveness: these strings end up in

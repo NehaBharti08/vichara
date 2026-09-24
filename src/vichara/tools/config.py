@@ -13,17 +13,17 @@ cheap to set up.
 
 from __future__ import annotations
 
-import enum
 from pathlib import Path
 from typing import Any
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from vichara.compat import StrEnum
 from vichara.settings import CONFIG_DIR
 
 
-class RiskClass(enum.StrEnum):
+class RiskClass(StrEnum):
     """What approval a call to this tool needs."""
 
     READ = "read"
@@ -34,7 +34,7 @@ class RiskClass(enum.StrEnum):
     approval interrupt in the graph before it is allowed to run."""
 
 
-class OutputTrust(enum.StrEnum):
+class OutputTrust(StrEnum):
     """How the model is allowed to treat what this tool returns."""
 
     TRUSTED = "trusted"

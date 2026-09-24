@@ -12,12 +12,12 @@ skipped task.
 
 from __future__ import annotations
 
-import enum
-
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from vichara.compat import StrEnum
 
-class Category(enum.StrEnum):
+
+class Category(StrEnum):
     """What the task is testing. Reported separately, never pooled -- a mean
     over categories with different success criteria means nothing."""
 
@@ -28,7 +28,7 @@ class Category(enum.StrEnum):
     ADVERSARIAL = "adversarial"
 
 
-class Split(enum.StrEnum):
+class Split(StrEnum):
     """Which half of the set a task belongs to.
 
     Prompts are tuned against ``dev`` only. ``test`` is looked at rarely and
@@ -41,7 +41,7 @@ class Split(enum.StrEnum):
     TEST = "test"
 
 
-class Terminal(enum.StrEnum):
+class Terminal(StrEnum):
     """The terminal state a correct run should reach."""
 
     ANSWERED = "answered"

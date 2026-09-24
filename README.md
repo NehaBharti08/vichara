@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/NehaBharti08/vichara/actions/workflows/ci.yml/badge.svg)](https://github.com/NehaBharti08/vichara/actions/workflows/ci.yml)
 
-**[Live demo — the trajectory viewer](https://huggingface.co/spaces/nehabharti0802/vichara)**
+**[Ask it something — the live agent](https://huggingface.co/spaces/nehabharti0802/vichara-live)** · **[Seven recorded runs](https://huggingface.co/spaces/nehabharti0802/vichara)**
 
 A study agent that plans a multi-step approach to an academic question, calls tools, and synthesises a cited answer — evaluated on its **trajectory**, not just its answer.
 
@@ -97,15 +97,31 @@ Citation verification took false-citation attacks from 0.25 to **0.00**. The one
 
 ## The demo
 
-**[huggingface.co/spaces/nehabharti0802/vichara](https://huggingface.co/spaces/nehabharti0802/vichara)** — seven recorded runs, each showing one behaviour worth looking at: a grounded answer, multi-tool orchestration, a correct refusal, a clarifying question, a guardrail stopping a runaway, a detected prompt injection, and a fabricated citation being removed.
+**[huggingface.co/spaces/nehabharti0802/vichara-live](https://huggingface.co/spaces/nehabharti0802/vichara-live)** — the agent, live. Ask a question and watch the trajectory build a step at a time: the stage strip shows where it is, and the plan, tool choice, tool call and result appear as they happen.
 
-It is a **static** page. Hugging Face withdrew free Docker Spaces partway through this project, and rather than pay for a live agent the viewer now serves recorded trajectories. That turned out to suit it: the viewer was always about *displaying* a trajectory rather than producing one, and a static page loads instantly, never sleeps, and cannot show a cold start or an exhausted quota — the three ways a hosted agent demo usually embarrasses its author.
+Two things it cannot do, both stated on the page. There is no Node runtime in a Gradio Space, so the Pyodide sandbox is unavailable and `run_python` drops out of the capability set — the agent is told, and says so rather than guessing. And model calls come from a single Gemini free-tier key, about 500 requests a day across everyone who visits, so when the quota is gone it serves a recorded trajectory with a notice instead of an error.
 
-Regenerate and redeploy with:
+**[huggingface.co/spaces/nehabharti0802/vichara](https://huggingface.co/spaces/nehabharti0802/vichara)** — seven recorded runs, each showing one behaviour worth looking at: a grounded answer, multi-tool orchestration, a correct refusal, a clarifying question, a guardrail stopping a runaway, a detected prompt injection, and a fabricated citation being removed. A static page: it loads instantly, never sleeps, and cannot show a cold start or an exhausted quota.
+
+### Getting the live one to run took five failures
+
+Hugging Face returns `402 Payment Required` for a Gradio Space on `cpu-basic`, which reads as "live demos cost $9/month" and is how this repository described the situation for a while. The 402 names `cpu-basic` specifically. **ZeroGPU is free**, hosts Gradio, and nothing here touches a GPU — every model call is an HTTPS request to Gemini.
+
+The rest were only visible from inside:
+
+| symptom | cause |
+|---|---|
+| build fails on a resolver conflict | the image appends its own `gradio[oauth,mcp]==6.27.0`; declaring a range too makes it unsatisfiable. Pin `sdk_version` in the README instead |
+| `module 'enum' has no attribute 'StrEnum'` | the ZeroGPU image is Python **3.10**, and `python_version` does not move it — hence [`compat.py`](src/vichara/compat.py) |
+| `cannot import name 'UTC' from 'datetime'` | same, and then `ruff --fix` rewrote the shim into the exact bug it existed to prevent |
+| clean startup, two passing health checks, then 503 | ZeroGPU reaps a container that never declares GPU work. A `@spaces.GPU` function that is never called keeps it alive |
+
+The last one is the unkind one: the run log shows a healthy start and no traceback, because the process is killed rather than crashing.
 
 ```bash
-uv run python scripts/export_static.py
-uv run python scripts/deploy_space.py --repo-id <user>/vichara
+uv run python scripts/export_static.py                                  # rebuild recorded runs
+uv run python scripts/deploy_space.py --repo-id <user>/vichara          # the static viewer
+uv run python scripts/deploy_live_space.py --repo-id <user>/vichara-live  # the live agent
 ```
 
 ## Quick start

@@ -12,9 +12,10 @@ import hashlib
 import json
 import time
 from collections.abc import Iterator
-from datetime import UTC, datetime
+from datetime import datetime
 from pathlib import Path
 
+from vichara.compat import UTC
 from vichara.logging import get_logger
 from vichara.trajectory.redact import Redactor
 from vichara.trajectory.schema import (
